@@ -4,14 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Phone, Mail, Wheelchair, Bed, Car, Heart, Shield, Clock } from "lucide-react";
+import { MapPin, Phone, Mail, Accessibility, Bed, Car, Heart, Shield, Clock } from "lucide-react";
 
 const Index = () => {
   const [selectedBranch, setSelectedBranch] = useState<"KZN" | "Gauteng" | null>(null);
   const navigate = useNavigate();
 
   const equipment = [
-    { name: "Wheelchairs", icon: Wheelchair, description: "Manual and electric wheelchairs", available: 12 },
+    { name: "Wheelchairs", icon: Accessibility, description: "Manual and electric wheelchairs", available: 12 },
     { name: "Mobility Scooters", icon: Car, description: "Indoor and outdoor mobility scooters", available: 8 },
     { name: "Hospital Beds", icon: Bed, description: "Adjustable hospital and care beds", available: 6 },
     { name: "Walking Aids", icon: Heart, description: "Walkers, crutches, and walking frames", available: 15 }

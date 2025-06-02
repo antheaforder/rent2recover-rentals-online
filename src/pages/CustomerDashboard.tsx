@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search, MapPin, ArrowLeft, Wheelchair, Car, Bed, Heart } from "lucide-react";
+import { CalendarIcon, Search, MapPin, ArrowLeft, Accessibility, Car, Bed, Heart } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ const CustomerDashboard = () => {
   const [endDate, setEndDate] = useState<Date>();
 
   const equipmentCategories = [
-    { id: "wheelchairs", name: "Wheelchairs", icon: Wheelchair, items: 12 },
+    { id: "wheelchairs", name: "Wheelchairs", icon: Accessibility, items: 12 },
     { id: "scooters", name: "Mobility Scooters", icon: Car, items: 8 },
     { id: "beds", name: "Hospital Beds", icon: Bed, items: 6 },
     { id: "walking-aids", name: "Walking Aids", icon: Heart, items: 15 }
