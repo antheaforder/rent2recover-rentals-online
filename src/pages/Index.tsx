@@ -4,31 +4,40 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Phone, Mail, Accessibility, Bed, Car, Heart, Shield, Clock } from "lucide-react";
+import { MapPin, Phone, Mail, Accessibility, Bed, Car, Heart, Shield, Clock, Activity, Stethoscope, Zap } from "lucide-react";
 
 const Index = () => {
-  const [selectedBranch, setSelectedBranch] = useState<"KZN" | "Gauteng" | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<"Hilton" | "Johannesburg" | null>(null);
   const navigate = useNavigate();
 
   const equipment = [
-    { name: "Wheelchairs", icon: Accessibility, description: "Manual and electric wheelchairs", available: 12 },
-    { name: "Mobility Scooters", icon: Car, description: "Indoor and outdoor mobility scooters", available: 8 },
-    { name: "Hospital Beds", icon: Bed, description: "Adjustable hospital and care beds", available: 6 },
-    { name: "Walking Aids", icon: Heart, description: "Walkers, crutches, and walking frames", available: 15 }
+    { name: "Electric Hospital Beds", icon: Bed, description: "Adjustable electric hospital beds", available: 8 },
+    { name: "Electric Wheelchairs", icon: Zap, description: "Powered wheelchairs with joystick control", available: 5 },
+    { name: "Wheelchairs", icon: Accessibility, description: "Manual wheelchairs", available: 12 },
+    { name: "Mobility Scooters", icon: Car, description: "Indoor and outdoor mobility scooters", available: 6 },
+    { name: "Commodes – Mobile Toilets", icon: Activity, description: "Portable toilet solutions", available: 10 },
+    { name: "Electric Bath Lifts", icon: Activity, description: "Electric bath lifting aids", available: 4 },
+    { name: "Swivel Bath Chairs", icon: Activity, description: "Rotating bath chairs for safety", available: 7 },
+    { name: "Knee Scooters", icon: Car, description: "Knee scooters for mobility", available: 9 },
+    { name: "Rollators", icon: Heart, description: "Four-wheeled walking aids", available: 11 },
+    { name: "Walker (Zimmer) Frames", icon: Heart, description: "Traditional walking frames", available: 15 },
+    { name: "Wheelchair Ramps", icon: Activity, description: "Portable wheelchair ramps", available: 6 },
+    { name: "Hoists", icon: Activity, description: "Patient lifting hoists", available: 3 },
+    { name: "Oxygen Concentrator Machines", icon: Stethoscope, description: "Medical oxygen concentrators", available: 5 }
   ];
 
   const branches = [
     {
-      name: "KZN",
-      location: "Durban, KwaZulu-Natal",
-      phone: "+27 31 123 4567",
-      email: "kzn@rent2recover.co.za"
+      name: "Hilton",
+      location: "Hilton, KwaZulu-Natal",
+      phone: "+27 33 343 1234",
+      email: "hilton@rent2recover.co.za"
     },
     {
-      name: "Gauteng", 
+      name: "Johannesburg", 
       location: "Johannesburg, Gauteng",
       phone: "+27 11 987 6543",
-      email: "gauteng@rent2recover.co.za"
+      email: "joburg@rent2recover.co.za"
     }
   ];
 
@@ -57,7 +66,7 @@ const Index = () => {
                   className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
                     selectedBranch === branch.name ? 'ring-2 ring-blue-500 shadow-lg' : ''
                   }`}
-                  onClick={() => setSelectedBranch(branch.name as "KZN" | "Gauteng")}
+                  onClick={() => setSelectedBranch(branch.name as "Hilton" | "Johannesburg")}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -111,8 +120,8 @@ const Index = () => {
       {/* Equipment Overview */}
       <div className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">Our Medical Equipment</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {equipment.map((item) => (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {equipment.slice(0, 8).map((item) => (
             <Card key={item.name} className="text-center hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
@@ -128,6 +137,10 @@ const Index = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+        
+        <div className="text-center mt-8">
+          <p className="text-gray-600">+ 5 more equipment types available</p>
         </div>
       </div>
 
@@ -148,14 +161,14 @@ const Index = () => {
                 <Clock className="h-8 w-8 text-green-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Flexible Rental</h3>
-              <p className="text-gray-600">Daily, weekly, or monthly rentals to suit your recovery timeline</p>
+              <p className="text-gray-600">Weekly or monthly rentals to suit your recovery timeline</p>
             </div>
             <div className="text-center">
               <div className="mx-auto mb-4 p-3 bg-purple-100 rounded-full w-fit">
                 <Heart className="h-8 w-8 text-purple-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Local Support</h3>
-              <p className="text-gray-600">Dedicated support teams in KZN and Gauteng for personal service</p>
+              <p className="text-gray-600">Dedicated support teams in Hilton and Johannesburg for personal service</p>
             </div>
           </div>
         </div>
