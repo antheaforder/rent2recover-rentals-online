@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import BookingFlow from "./pages/BookingFlow";
+import BookingWorkflow from "./pages/BookingWorkflow";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/customer" element={<CustomerDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/book/:equipmentType" element={<BookingFlow />} />
+          <Route path="/booking" element={<BookingWorkflow />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
