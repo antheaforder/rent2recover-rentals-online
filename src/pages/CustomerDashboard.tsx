@@ -1,16 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search, MapPin, ArrowLeft, Accessibility, Car, Bed, Heart, Activity, Stethoscope, Zap, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { ArrowLeft, MapPin, Accessibility, Car, Bed, Heart, Activity, Stethoscope, Zap } from "lucide-react";
+import SearchFilters from "@/components/SearchFilters";
+import EquipmentCategories from "@/components/EquipmentCategories";
+import EquipmentGrid from "@/components/EquipmentGrid";
 
 const CustomerDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -142,159 +137,30 @@ const CustomerDashboard = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Search and Filters */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Find Equipment</CardTitle>
-            <CardDescription>Search and filter available medical equipment at the {branch} branch</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search equipment..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {equipmentCategories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <SearchFilters
+          branch={branch}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          equipmentCategories={equipmentCategories}
+        />
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "MMM dd") : "Start Date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
+        <EquipmentCategories
+          categories={equipmentCategories}
+          selectedCategory={selectedCategory}
+          onCategorySelect={setSelectedCategory}
+        />
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "MMM dd") : "End Date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Equipment Categories Overview */}
-        <div className="grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-          {equipmentCategories.slice(0, 10).map((category) => (
-            <Card 
-              key={category.id}
-              className={`cursor-pointer transition-all hover:shadow-lg ${
-                selectedCategory === category.id ? 'ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() => setSelectedCategory(category.id)}
-            >
-              <CardContent className="text-center p-4">
-                <div className="mx-auto mb-2 p-2 bg-blue-100 rounded-full w-fit">
-                  <category.icon className="h-5 w-5 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-sm mb-1">{category.name}</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {category.items} Available
-                </Badge>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Equipment Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-video bg-gray-200 flex items-center justify-center">
-                <div className="text-gray-400">Equipment Image</div>
-              </div>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{item.name}</CardTitle>
-                  <div className="text-right">
-                    <Badge variant="outline" className="text-green-600 border-green-600 mb-1">
-                      {item.available} Available
-                    </Badge>
-                    <div className="text-xs text-gray-500">at {branch}</div>
-                  </div>
-                </div>
-                <CardDescription>{item.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Weekly:</span>
-                    <span className="font-semibold">R{item.weeklyRate}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Monthly:</span>
-                    <span className="font-semibold">R{item.monthlyRate}</span>
-                  </div>
-                </div>
-                
-                {item.available === 0 && (
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-yellow-800 text-sm">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>Available at {otherBranch} branch</span>
-                    </div>
-                    <p className="text-xs text-yellow-700 mt-1">Additional delivery fees apply</p>
-                  </div>
-                )}
-                
-                <Button 
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  onClick={() => navigate(`/book/${item.category}?item=${item.id}&branch=${branch}`)}
-                  disabled={item.available === 0}
-                >
-                  {item.available > 0 ? 'Book Now' : 'Check Other Branch'}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredItems.length === 0 && (
-          <Card className="text-center py-12">
-            <CardContent>
-              <div className="text-gray-400 mb-4">No equipment found</div>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-            </CardContent>
-          </Card>
-        )}
+        <EquipmentGrid
+          items={filteredItems}
+          branch={branch}
+          otherBranch={otherBranch}
+        />
       </div>
     </div>
   );
