@@ -15,8 +15,10 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Edit,
-  Trash2
+  Trash2,
+  Wrench
 } from "lucide-react";
+import { EQUIPMENT_CATEGORIES, BRANCHES } from "@/config/equipmentCategories";
 
 interface InventoryManagerProps {
   branch: string;
@@ -26,13 +28,16 @@ interface InventoryItem {
   id: string;
   name: string;
   category: string;
-  status: 'available' | 'rented' | 'maintenance' | 'transfer';
+  status: 'available' | 'booked' | 'maintenance' | 'transfer';
   branch: string;
+  serialNumber: string;
   lastChecked: string;
   condition: 'excellent' | 'good' | 'fair' | 'needs-repair';
+  notes?: string;
   currentBooking?: {
     customer: string;
     endDate: string;
+    bookingId: string;
   };
 }
 
@@ -40,59 +45,81 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
-  // Mock inventory data
+  // Mock inventory data with enhanced fields
   const inventory: InventoryItem[] = [
     {
       id: "WC001",
-      name: "Standard Wheelchair",
+      name: "Standard Manual Wheelchair",
       category: "wheelchairs",
       status: "available",
       branch: "hilton",
+      serialNumber: "WC-2024-001",
       lastChecked: "2024-01-15",
-      condition: "excellent"
+      condition: "excellent",
+      notes: "Recently serviced"
     },
     {
       id: "WC002",
-      name: "Standard Wheelchair",
+      name: "Electric Wheelchair",
       category: "wheelchairs", 
-      status: "rented",
+      status: "booked",
       branch: "hilton",
+      serialNumber: "WC-2024-002",
       lastChecked: "2024-01-10",
       condition: "good",
+      notes: "Battery replaced last month",
       currentBooking: {
         customer: "John Smith",
-        endDate: "2024-01-20"
+        endDate: "2024-01-20",
+        bookingId: "B001"
       }
     },
     {
       id: "MS001",
       name: "4-Wheel Mobility Scooter",
-      category: "scooters",
+      category: "mobility-scooters",
       status: "maintenance",
       branch: "johannesburg",
+      serialNumber: "MS-2024-001",
       lastChecked: "2024-01-08",
-      condition: "needs-repair"
+      condition: "needs-repair",
+      notes: "Left motor needs replacement"
     },
     {
       id: "HB001",
       name: "Electric Hospital Bed",
-      category: "beds",
+      category: "hospital-beds",
       status: "available",
       branch: "hilton",
+      serialNumber: "HB-2024-001",
       lastChecked: "2024-01-14",
-      condition: "excellent"
+      condition: "excellent",
+      notes: "Full feature bed with remote"
+    },
+    {
+      id: "WA001",
+      name: "Standard Walking Frame",
+      category: "walking-aids",
+      status: "booked",
+      branch: "johannesburg",
+      serialNumber: "WA-2024-001",
+      lastChecked: "2024-01-12",
+      condition: "good",
+      currentBooking: {
+        customer: "Mary Johnson",
+        endDate: "2024-01-18",
+        bookingId: "B002"
+      }
     }
-  ];
-
-  const categories = [
-    "wheelchairs", "scooters", "beds", "walkers", "crutches", 
-    "bathroom-aids", "lifts", "ramps", "cushions", "accessories"
   ];
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.name.toLowerCase().includes(searchTerm.toLowerCase());
+                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
     const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
     const matchesBranch = item.branch === branch;
@@ -102,11 +129,11 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-100 text-green-800';
-      case 'rented': return 'bg-blue-100 text-blue-800';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
-      case 'transfer': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'available': return 'bg-green-100 text-green-800 border-green-200';
+      case 'booked': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'maintenance': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'transfer': return 'bg-purple-100 text-purple-800 border-purple-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -123,20 +150,32 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'available': return CheckCircle;
-      case 'rented': return Clock;
-      case 'maintenance': return AlertTriangle;
+      case 'booked': return Clock;
+      case 'maintenance': return Wrench;
       case 'transfer': return ArrowRightLeft;
       default: return Package;
     }
   };
+
+  const getCategoryName = (categoryId: string) => {
+    return EQUIPMENT_CATEGORIES.find(cat => cat.id === categoryId)?.name || categoryId;
+  };
+
+  const handleTransfer = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setShowTransferModal(true);
+  };
+
+  const currentBranch = BRANCHES.find(b => b.id === branch);
+  const targetBranch = BRANCHES.find(b => b.id !== branch);
 
   return (
     <div className="space-y-6">
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Inventory Management</h2>
-          <p className="text-gray-600">Manage equipment for {branch === 'hilton' ? 'Hilton' : 'Johannesburg'} branch</p>
+          <h2 className="text-xl font-semibold">Equipment Inventory</h2>
+          <p className="text-gray-600">Manage equipment for {currentBranch?.name}</p>
         </div>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
@@ -154,7 +193,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search by ID or name..."
+                placeholder="Search by ID, name, or serial..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -168,7 +207,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="rented">Rented</SelectItem>
+                <SelectItem value="booked">Booked</SelectItem>
                 <SelectItem value="maintenance">Maintenance</SelectItem>
                 <SelectItem value="transfer">In Transfer</SelectItem>
               </SelectContent>
@@ -180,9 +219,9 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+                {EQUIPMENT_CATEGORIES.map(category => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -210,8 +249,17 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg">{item.name}</h3>
-                      <p className="text-sm text-gray-600">ID: {item.id}</p>
-                      <p className="text-xs text-gray-500">Last checked: {item.lastChecked}</p>
+                      <div className="flex gap-2 text-sm text-gray-600">
+                        <span>ID: {item.id}</span>
+                        <span>•</span>
+                        <span>Serial: {item.serialNumber}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Category: {getCategoryName(item.category)} • Last checked: {item.lastChecked}
+                      </p>
+                      {item.notes && (
+                        <p className="text-xs text-gray-600 mt-1 italic">"{item.notes}"</p>
+                      )}
                       <div className="flex gap-2 mt-2">
                         <Badge className={getStatusColor(item.status)}>
                           {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
@@ -230,7 +278,11 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleTransfer(item)}
+                        >
                           <ArrowRightLeft className="h-4 w-4 mr-1" />
                           Transfer
                         </Button>
@@ -240,13 +292,16 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                       </>
                     )}
                     
-                    {item.status === 'rented' && (
+                    {item.status === 'booked' && (
                       <div className="text-right">
                         <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                           Check In
                         </Button>
                         <p className="text-xs text-gray-500 mt-1">
                           Due: {item.currentBooking?.endDate}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Booking: {item.currentBooking?.bookingId}
                         </p>
                       </div>
                     )}
@@ -269,6 +324,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm"><strong>Customer:</strong> {item.currentBooking.customer}</p>
                     <p className="text-sm"><strong>Return Due:</strong> {item.currentBooking.endDate}</p>
+                    <p className="text-sm"><strong>Booking ID:</strong> {item.currentBooking.bookingId}</p>
                   </div>
                 )}
               </CardContent>
@@ -286,6 +342,47 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           </Card>
         )}
       </div>
+
+      {/* Transfer Modal */}
+      {showTransferModal && selectedItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>Transfer Equipment</CardTitle>
+              <CardDescription>
+                Transfer {selectedItem.name} ({selectedItem.id}) to another branch
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium">From: {currentBranch?.name}</p>
+                  <p className="text-sm font-medium">To: {targetBranch?.name}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => setShowTransferModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      // Handle transfer logic here
+                      setShowTransferModal(false);
+                      setSelectedItem(null);
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    Confirm Transfer
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

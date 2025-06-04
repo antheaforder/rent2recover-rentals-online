@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Package, 
   CheckCircle, 
@@ -11,8 +12,10 @@ import {
   TrendingUp, 
   Calendar,
   MapPin,
-  Users
+  Users,
+  Wrench
 } from "lucide-react";
+import { EQUIPMENT_CATEGORIES, BRANCHES } from "@/config/equipmentCategories";
 
 interface DashboardOverviewProps {
   branch: string;
@@ -20,24 +23,38 @@ interface DashboardOverviewProps {
 
 const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
   const [viewMode, setViewMode] = useState<'total' | 'available'>('available');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Mock data - replace with real API calls
+  // Mock data with all 13 categories
+  const categoryStats = EQUIPMENT_CATEGORIES.map(category => ({
+    ...category,
+    total: Math.floor(Math.random() * 50) + 10,
+    available: Math.floor(Math.random() * 30) + 5,
+    booked: Math.floor(Math.random() * 15) + 2,
+    maintenance: Math.floor(Math.random() * 5) + 1
+  }));
+
   const stats = {
     bookingsToday: 12,
-    checkedOut: 45,
+    returnsToday: 8,
     overdueReturns: 3,
-    totalEquipment: 150,
-    availableEquipment: 78,
-    maintenanceItems: 8,
+    totalEquipment: categoryStats.reduce((sum, cat) => sum + cat.total, 0),
+    availableEquipment: categoryStats.reduce((sum, cat) => sum + cat.available, 0),
+    bookedEquipment: categoryStats.reduce((sum, cat) => sum + cat.booked, 0),
+    maintenanceItems: categoryStats.reduce((sum, cat) => sum + cat.maintenance, 0),
     revenue: 15750
   };
 
+  const filteredStats = selectedCategory === 'all' 
+    ? categoryStats 
+    : categoryStats.filter(cat => cat.id === selectedCategory);
+
   const recentActivity = [
-    { id: 1, type: 'booking', message: 'New booking: Wheelchair WC001', time: '10 mins ago', status: 'new' },
+    { id: 1, type: 'booking', message: 'New booking: Standard Wheelchair (WC001)', time: '10 mins ago', status: 'new' },
     { id: 2, type: 'payment', message: 'Payment received: R450 - John Smith', time: '25 mins ago', status: 'success' },
-    { id: 3, type: 'delivery', message: 'Delivery confirmed: Hospital Bed HB003', time: '1 hour ago', status: 'success' },
-    { id: 4, type: 'overdue', message: 'Overdue return: Mobility Scooter MS002', time: '2 hours ago', status: 'warning' },
-    { id: 5, type: 'extension', message: 'Extension request: WC005 - Sarah Johnson', time: '3 hours ago', status: 'pending' }
+    { id: 3, type: 'delivery', message: 'Delivery confirmed: Hospital Bed (HB003)', time: '1 hour ago', status: 'success' },
+    { id: 4, type: 'overdue', message: 'Overdue return: Mobility Scooter (MS002)', time: '2 hours ago', status: 'warning' },
+    { id: 5, type: 'extension', message: 'Extension request: Walking Frame (WF005)', time: '3 hours ago', status: 'pending' }
   ];
 
   const getActivityIcon = (type: string) => {
@@ -61,17 +78,32 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
     }
   };
 
+  const currentBranch = BRANCHES.find(b => b.id === branch);
+
   return (
     <div className="space-y-6">
-      {/* Branch Info & View Toggle */}
+      {/* Branch Info & Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MapPin className="h-5 w-5 text-gray-500" />
           <h2 className="text-xl font-semibold">
-            {branch === 'hilton' ? 'Hilton' : 'Johannesburg'} Branch Overview
+            {currentBranch?.name} Overview
           </h2>
         </div>
         <div className="flex gap-2">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {EQUIPMENT_CATEGORIES.map(category => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button 
             variant={viewMode === 'total' ? 'default' : 'outline'} 
             size="sm"
@@ -100,7 +132,7 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
               </div>
               <Calendar className="h-8 w-8 text-blue-400" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">+15% from yesterday</p>
+            <p className="text-xs text-gray-500 mt-2">Returns due: {stats.returnsToday}</p>
           </CardContent>
         </Card>
 
@@ -109,12 +141,12 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Equipment Out</p>
-                <p className="text-3xl font-bold text-green-600">{stats.checkedOut}</p>
+                <p className="text-3xl font-bold text-green-600">{stats.bookedEquipment}</p>
               </div>
               <Package className="h-8 w-8 text-green-400" />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {viewMode === 'total' ? `${stats.totalEquipment} total items` : `${stats.availableEquipment} available`}
+              Available: {stats.availableEquipment}
             </p>
           </CardContent>
         </Card>
@@ -136,15 +168,56 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Revenue Today</p>
-                <p className="text-3xl font-bold text-purple-600">R{stats.revenue.toLocaleString()}</p>
+                <p className="text-sm font-medium text-gray-600">Maintenance</p>
+                <p className="text-3xl font-bold text-orange-600">{stats.maintenanceItems}</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-purple-400" />
+              <Wrench className="h-8 w-8 text-orange-400" />
             </div>
-            <p className="text-xs text-gray-500 mt-2">+8% from last week</p>
+            <p className="text-xs text-gray-500 mt-2">Items under repair</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Equipment Categories Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Equipment Categories</CardTitle>
+          <CardDescription>
+            Breakdown by category for {currentBranch?.name}
+            {selectedCategory !== 'all' && ` - ${EQUIPMENT_CATEGORIES.find(c => c.id === selectedCategory)?.name}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredStats.map((category) => (
+              <div key={category.id} className="p-4 border rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
+                  <h3 className="font-semibold text-sm">{category.name}</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-500">Total:</span>
+                    <span className="font-medium ml-1">{category.total}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Available:</span>
+                    <span className="font-medium ml-1 text-green-600">{category.available}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Booked:</span>
+                    <span className="font-medium ml-1 text-blue-600">{category.booked}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Maintenance:</span>
+                    <span className="font-medium ml-1 text-orange-600">{category.maintenance}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card>

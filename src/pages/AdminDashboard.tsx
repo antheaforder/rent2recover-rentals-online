@@ -18,23 +18,41 @@ import {
   Bell,
   Calendar as CalendarIcon,
   Users,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import DashboardOverview from "@/components/admin/DashboardOverview";
 import InventoryManager from "@/components/admin/InventoryManager";
 import BookingCalendar from "@/components/admin/BookingCalendar";
 import NotificationsPanel from "@/components/admin/NotificationsPanel";
 import BookingManager from "@/components/admin/BookingManager";
+import { BRANCHES, USER_ROLES, type UserRole } from "@/config/equipmentCategories";
 
 const AdminDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const branch = searchParams.get('branch') || 'hilton';
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Mock user role - in real app this would come from auth
+  const [userRole, setUserRole] = useState<UserRole>('super-admin');
 
   const setBranch = (newBranch: string) => {
     setSearchParams({ branch: newBranch });
   };
+
+  const currentBranch = BRANCHES.find(b => b.id === branch);
+  const currentUserRole = USER_ROLES.find(r => r.id === userRole);
+  
+  // Role-based access control
+  const canViewAllBranches = userRole === 'super-admin';
+  const canEditEquipment = userRole !== 'read-only';
+  const canManageUsers = userRole === 'super-admin';
+
+  // Filter branches based on user role
+  const availableBranches = canViewAllBranches 
+    ? BRANCHES 
+    : BRANCHES.filter(b => b.id === branch);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -53,28 +71,61 @@ const AdminDashboard = () => {
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    {currentUserRole?.name}
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <MapPin className="h-4 w-4" />
-                  {branch === 'hilton' ? 'Hilton' : 'Johannesburg'} Branch
+                  {currentBranch?.name}
+                  {!canViewAllBranches && (
+                    <span className="text-xs text-gray-500 ml-2">(Restricted Access)</span>
+                  )}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Select value={branch} onValueChange={setBranch}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hilton">Hilton Branch</SelectItem>
-                  <SelectItem value="johannesburg">Johannesburg Branch</SelectItem>
-                </SelectContent>
-              </Select>
+              {canViewAllBranches && (
+                <Select value={branch} onValueChange={setBranch}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BRANCHES.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              
               <NotificationsPanel />
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Equipment
-              </Button>
+              
+              {canEditEquipment && (
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Equipment
+                </Button>
+              )}
+
+              {canManageUsers && (
+                <Select value={userRole} onValueChange={(value: UserRole) => setUserRole(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USER_ROLES.map(role => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </div>
@@ -87,7 +138,7 @@ const AdminDashboard = () => {
               <Package className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex items-center gap-2">
+            <TabsTrigger value="inventory" className="flex items-center gap-2" disabled={!canEditEquipment}>
               <Settings className="h-4 w-4" />
               Inventory
             </TabsTrigger>
@@ -110,7 +161,17 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="inventory" className="mt-6">
-            <InventoryManager branch={branch} />
+            {canEditEquipment ? (
+              <InventoryManager branch={branch} />
+            ) : (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
+                  <p className="text-gray-600">You don't have permission to manage inventory</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="calendar" className="mt-6">
@@ -125,22 +186,40 @@ const AdminDashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Reports & Analytics</CardTitle>
-                <CardDescription>Export data and view analytics</CardDescription>
+                <CardDescription>Export data and view analytics for {currentBranch?.name}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <Button variant="outline" className="w-full justify-start">
                     <Download className="h-4 w-4 mr-2" />
-                    Export All Bookings
+                    Export All Bookings ({currentBranch?.name})
                   </Button>
                   <Button variant="outline" className="w-full justify-start">
                     <Download className="h-4 w-4 mr-2" />
-                    Export Inventory Report
+                    Export Inventory Report ({currentBranch?.name})
                   </Button>
                   <Button variant="outline" className="w-full justify-start">
                     <Download className="h-4 w-4 mr-2" />
-                    Export Financial Summary
+                    Export Financial Summary ({currentBranch?.name})
                   </Button>
+                  {canViewAllBranches && (
+                    <>
+                      <hr className="my-4" />
+                      <h4 className="font-semibold">Combined Reports (All Branches)</h4>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Combined Bookings Report
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Combined Inventory Report
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Business Analytics Dashboard
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
