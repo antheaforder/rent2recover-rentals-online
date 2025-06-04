@@ -72,7 +72,7 @@ const AdminDashboard = () => {
               </Button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Rent2Recover Admin</h1>
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Shield className="h-3 w-3" />
                     {currentUserRole?.name}
@@ -80,7 +80,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <MapPin className="h-4 w-4" />
-                  {currentBranch?.name}
+                  {currentBranch?.name} • Medical Equipment Rental Management
                   {!canViewAllBranches && (
                     <span className="text-xs text-gray-500 ml-2">(Restricted Access)</span>
                   )}
@@ -190,34 +190,69 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export All Bookings ({currentBranch?.name})
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Inventory Report ({currentBranch?.name})
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Financial Summary ({currentBranch?.name})
-                  </Button>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Button variant="outline" className="w-full justify-start h-auto p-4">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Download className="h-4 w-4" />
+                          <span className="font-medium">Booking Reports</span>
+                        </div>
+                        <p className="text-sm text-gray-500">Export all bookings for {currentBranch?.name}</p>
+                      </div>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start h-auto p-4">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Package className="h-4 w-4" />
+                          <span className="font-medium">Inventory Report</span>
+                        </div>
+                        <p className="text-sm text-gray-500">Current stock levels and utilization</p>
+                      </div>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start h-auto p-4">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CalendarIcon className="h-4 w-4" />
+                          <span className="font-medium">Calendar Export</span>
+                        </div>
+                        <p className="text-sm text-gray-500">iCal feeds for all equipment</p>
+                      </div>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start h-auto p-4">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="font-medium">Financial Summary</span>
+                        </div>
+                        <p className="text-sm text-gray-500">Revenue and payment analytics</p>
+                      </div>
+                    </Button>
+                  </div>
+                  
                   {canViewAllBranches && (
                     <>
-                      <hr className="my-4" />
-                      <h4 className="font-semibold">Combined Reports (All Branches)</h4>
-                      <Button variant="outline" className="w-full justify-start">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Combined Bookings Report
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Combined Inventory Report
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Business Analytics Dashboard
-                      </Button>
+                      <hr className="my-6" />
+                      <h4 className="font-semibold mb-4">Combined Reports (All Branches)</h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <Button variant="outline" className="w-full justify-start h-auto p-4">
+                          <div className="text-left">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Download className="h-4 w-4" />
+                              <span className="font-medium">Multi-Branch Analytics</span>
+                            </div>
+                            <p className="text-sm text-gray-500">Combined booking and revenue data</p>
+                          </div>
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start h-auto p-4">
+                          <div className="text-left">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MapPin className="h-4 w-4" />
+                              <span className="font-medium">Cross-Branch Transfers</span>
+                            </div>
+                            <p className="text-sm text-gray-500">Equipment movement between branches</p>
+                          </div>
+                        </Button>
+                      </div>
                     </>
                   )}
                 </div>
