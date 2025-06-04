@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, User, Phone, Mail, MapPin } from "lucide-react";
-import { BookingData } from "@/pages/BookingWorkflow";
+import { BookingData } from "@/hooks/useBookingWorkflow";
 
 interface CustomerInfoProps {
   customerInfo: BookingData['customerInfo'];

@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, CheckCircle, AlertTriangle, Truck } from "lucide-react";
-import { BookingData } from "@/pages/BookingWorkflow";
+import { BookingData } from "@/hooks/useBookingWorkflow";
 
 interface AvailabilityCheckProps {
   bookingData: BookingData;

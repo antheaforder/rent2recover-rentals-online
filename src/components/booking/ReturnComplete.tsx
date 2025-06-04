@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, RefreshCw, Star, ArrowLeft } from "lucide-react";
-import { BookingData } from "@/pages/BookingWorkflow";
+import { BookingData } from "@/hooks/useBookingWorkflow";
 import { format } from "date-fns";
 
 interface ReturnCompleteProps {

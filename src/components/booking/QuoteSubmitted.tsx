@@ -1,8 +1,7 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, ArrowLeft } from "lucide-react";
-import { BookingData } from "@/pages/BookingWorkflow";
+import { BookingData } from "@/hooks/useBookingWorkflow";
 
 interface QuoteSubmittedProps {
   bookingData: BookingData;

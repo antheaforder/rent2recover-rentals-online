@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Clock, CalendarIcon, ArrowLeft } from "lucide-react";
-import { BookingData } from "@/pages/BookingWorkflow";
+import { BookingData } from "@/hooks/useBookingWorkflow";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
