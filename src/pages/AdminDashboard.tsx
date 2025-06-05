@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import InventoryManager from "@/components/admin/InventoryManager";
 import BookingCalendar from "@/components/admin/BookingCalendar";
 import NotificationsPanel from "@/components/admin/NotificationsPanel";
 import BookingManager from "@/components/admin/BookingManager";
+import CreateBookingModal from "@/components/admin/CreateBookingModal";
 import { BRANCHES, USER_ROLES, type UserRole } from "@/config/equipmentCategories";
 
 const AdminDashboard = () => {
@@ -33,6 +33,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const branch = searchParams.get('branch') || 'hilton';
   const [activeTab, setActiveTab] = useState('overview');
+  const [isCreateBookingOpen, setIsCreateBookingOpen] = useState(false);
   
   // Mock user role - in real app this would come from auth
   const [userRole, setUserRole] = useState<UserRole>('super-admin');
@@ -46,13 +47,19 @@ const AdminDashboard = () => {
   
   // Role-based access control
   const canViewAllBranches = userRole === 'super-admin';
-  const canEditEquipment = userRole !== 'read-only';
+  const canEditEquipment = userRole === 'super-admin';
+  const canCreateBookings = userRole === 'super-admin';
   const canManageUsers = userRole === 'super-admin';
 
   // Filter branches based on user role
   const availableBranches = canViewAllBranches 
     ? BRANCHES 
     : BRANCHES.filter(b => b.id === branch);
+
+  const handleBookingCreated = () => {
+    // Refresh data if needed
+    console.log('Booking created, refreshing data...');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,9 +88,6 @@ const AdminDashboard = () => {
                 <div className="flex items-center gap-1 text-sm text-gray-600">
                   <MapPin className="h-4 w-4" />
                   {currentBranch?.name} • Medical Equipment Rental Management
-                  {!canViewAllBranches && (
-                    <span className="text-xs text-gray-500 ml-2">(Restricted Access)</span>
-                  )}
                 </div>
               </div>
             </div>
@@ -105,26 +109,22 @@ const AdminDashboard = () => {
               
               <NotificationsPanel />
               
+              {canCreateBookings && (
+                <Button 
+                  size="sm" 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => setIsCreateBookingOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Booking
+                </Button>
+              )}
+
               {canEditEquipment && (
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Equipment
                 </Button>
-              )}
-
-              {canManageUsers && (
-                <Select value={userRole} onValueChange={(value: UserRole) => setUserRole(value)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {USER_ROLES.map(role => (
-                      <SelectItem key={role.id} value={role.id}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               )}
             </div>
           </div>
@@ -261,6 +261,14 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Create Booking Modal */}
+      <CreateBookingModal
+        isOpen={isCreateBookingOpen}
+        onClose={() => setIsCreateBookingOpen(false)}
+        branch={branch}
+        onBookingCreated={handleBookingCreated}
+      />
     </div>
   );
 };

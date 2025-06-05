@@ -1,10 +1,12 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Search, 
   Filter, 
@@ -16,105 +18,35 @@ import {
   ArrowRightLeft,
   Edit,
   Trash2,
-  Wrench
+  Wrench,
+  Download,
+  Link
 } from "lucide-react";
-import { EQUIPMENT_CATEGORIES, BRANCHES } from "@/config/equipmentCategories";
+import { EQUIPMENT_CATEGORIES, BRANCHES, type InventoryItem } from "@/config/equipmentCategories";
+import { 
+  getInventoryByBranch, 
+  addInventoryItem, 
+  updateInventoryItem, 
+  deleteInventoryItem,
+  createMaintenanceBlock,
+  generateICalForItem
+} from "@/services/bookingService";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryManagerProps {
   branch: string;
-}
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  status: 'available' | 'booked' | 'maintenance' | 'transfer';
-  branch: string;
-  serialNumber: string;
-  lastChecked: string;
-  condition: 'excellent' | 'good' | 'fair' | 'needs-repair';
-  notes?: string;
-  currentBooking?: {
-    customer: string;
-    endDate: string;
-    bookingId: string;
-  };
 }
 
 const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [inventory, setInventory] = useState<InventoryItem[]>(() => getInventoryByBranch(branch));
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-
-  // Mock inventory data with enhanced fields
-  const inventory: InventoryItem[] = [
-    {
-      id: "WC001",
-      name: "Standard Manual Wheelchair",
-      category: "wheelchairs",
-      status: "available",
-      branch: "hilton",
-      serialNumber: "WC-2024-001",
-      lastChecked: "2024-01-15",
-      condition: "excellent",
-      notes: "Recently serviced"
-    },
-    {
-      id: "WC002",
-      name: "Electric Wheelchair",
-      category: "wheelchairs", 
-      status: "booked",
-      branch: "hilton",
-      serialNumber: "WC-2024-002",
-      lastChecked: "2024-01-10",
-      condition: "good",
-      notes: "Battery replaced last month",
-      currentBooking: {
-        customer: "John Smith",
-        endDate: "2024-01-20",
-        bookingId: "B001"
-      }
-    },
-    {
-      id: "MS001",
-      name: "4-Wheel Mobility Scooter",
-      category: "mobility-scooters",
-      status: "maintenance",
-      branch: "johannesburg",
-      serialNumber: "MS-2024-001",
-      lastChecked: "2024-01-08",
-      condition: "needs-repair",
-      notes: "Left motor needs replacement"
-    },
-    {
-      id: "HB001",
-      name: "Electric Hospital Bed",
-      category: "hospital-beds",
-      status: "available",
-      branch: "hilton",
-      serialNumber: "HB-2024-001",
-      lastChecked: "2024-01-14",
-      condition: "excellent",
-      notes: "Full feature bed with remote"
-    },
-    {
-      id: "WA001",
-      name: "Standard Walking Frame",
-      category: "walking-aids",
-      status: "booked",
-      branch: "johannesburg",
-      serialNumber: "WA-2024-001",
-      lastChecked: "2024-01-12",
-      condition: "good",
-      currentBooking: {
-        customer: "Mary Johnson",
-        endDate: "2024-01-18",
-        bookingId: "B002"
-      }
-    }
-  ];
+  const { toast } = useToast();
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,6 +58,98 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
     
     return matchesSearch && matchesStatus && matchesCategory && matchesBranch;
   });
+
+  const handleAddItem = async (formData: FormData) => {
+    try {
+      const newItem = addInventoryItem({
+        name: formData.get('name') as string,
+        category: formData.get('category') as any,
+        branch: branch as any,
+        serialNumber: formData.get('serialNumber') as string,
+        condition: formData.get('condition') as any,
+        status: 'available',
+        lastChecked: new Date().toISOString().split('T')[0],
+        notes: formData.get('notes') as string || undefined
+      });
+      
+      setInventory(getInventoryByBranch(branch));
+      setIsAddModalOpen(false);
+      toast({
+        title: "Item Added",
+        description: `${newItem.name} has been added to inventory`
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to inventory",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      deleteInventoryItem(itemId);
+      setInventory(getInventoryByBranch(branch));
+      toast({
+        title: "Item Deleted",
+        description: "Item has been removed from inventory"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete item",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateMaintenanceBlock = async (itemId: string, reason: string) => {
+    try {
+      createMaintenanceBlock({
+        itemId,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        reason,
+        createdBy: 'admin'
+      });
+      
+      setInventory(getInventoryByBranch(branch));
+      setIsMaintenanceModalOpen(false);
+      toast({
+        title: "Maintenance Block Created",
+        description: "Item has been marked for maintenance"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create maintenance block",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDownloadICal = (itemId: string) => {
+    const icalContent = generateICalForItem(itemId);
+    if (icalContent) {
+      const blob = new Blob([icalContent], { type: 'text/calendar' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${itemId}-calendar.ics`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const copyICalLink = (itemId: string) => {
+    const icalUrl = `https://rent2recover.com/api/ical/${itemId}`;
+    navigator.clipboard.writeText(icalUrl);
+    toast({
+      title: "iCal Link Copied",
+      description: "Calendar link has been copied to clipboard"
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -147,27 +171,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'available': return CheckCircle;
-      case 'booked': return Clock;
-      case 'maintenance': return Wrench;
-      case 'transfer': return ArrowRightLeft;
-      default: return Package;
-    }
-  };
-
-  const getCategoryName = (categoryId: string) => {
-    return EQUIPMENT_CATEGORIES.find(cat => cat.id === categoryId)?.name || categoryId;
-  };
-
-  const handleTransfer = (item: InventoryItem) => {
-    setSelectedItem(item);
-    setShowTransferModal(true);
-  };
-
   const currentBranch = BRANCHES.find(b => b.id === branch);
-  const targetBranch = BRANCHES.find(b => b.id !== branch);
 
   return (
     <div className="space-y-6">
@@ -177,10 +181,72 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           <h2 className="text-xl font-semibold">Equipment Inventory</h2>
           <p className="text-gray-600">Manage equipment for {currentBranch?.name}</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Equipment
-        </Button>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Equipment
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Equipment</DialogTitle>
+              <DialogDescription>Add a new item to the inventory</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleAddItem(new FormData(e.target as HTMLFormElement));
+            }} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Equipment Name</Label>
+                <Input id="name" name="name" required />
+              </div>
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select name="category" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EQUIPMENT_CATEGORIES.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="serialNumber">Serial Number</Label>
+                <Input id="serialNumber" name="serialNumber" required />
+              </div>
+              <div>
+                <Label htmlFor="condition">Condition</Label>
+                <Select name="condition" defaultValue="excellent">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="excellent">Excellent</SelectItem>
+                    <SelectItem value="good">Good</SelectItem>
+                    <SelectItem value="fair">Fair</SelectItem>
+                    <SelectItem value="needs-repair">Needs Repair</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea id="notes" name="notes" />
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Item</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Search and Filters */}
@@ -237,100 +303,94 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 
       {/* Inventory Grid */}
       <div className="grid gap-4">
-        {filteredInventory.map((item) => {
-          const StatusIcon = getStatusIcon(item.status);
-          return (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-100 rounded-lg">
-                      <StatusIcon className="h-6 w-6 text-gray-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{item.name}</h3>
-                      <div className="flex gap-2 text-sm text-gray-600">
-                        <span>ID: {item.id}</span>
-                        <span>•</span>
-                        <span>Serial: {item.serialNumber}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Category: {getCategoryName(item.category)} • Last checked: {item.lastChecked}
-                      </p>
-                      {item.notes && (
-                        <p className="text-xs text-gray-600 mt-1 italic">"{item.notes}"</p>
-                      )}
-                      <div className="flex gap-2 mt-2">
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                        </Badge>
-                        <Badge className={getConditionColor(item.condition)}>
-                          {item.condition.charAt(0).toUpperCase() + item.condition.slice(1).replace('-', ' ')}
-                        </Badge>
-                      </div>
-                    </div>
+        {filteredInventory.map((item) => (
+          <Card key={item.id} className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gray-100 rounded-lg">
+                    <Package className="h-6 w-6 text-gray-600" />
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {item.status === 'available' && (
-                      <>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleTransfer(item)}
-                        >
-                          <ArrowRightLeft className="h-4 w-4 mr-1" />
-                          Transfer
-                        </Button>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          Check Out
-                        </Button>
-                      </>
+                  <div>
+                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                    <div className="flex gap-2 text-sm text-gray-600">
+                      <span>ID: {item.id}</span>
+                      <span>•</span>
+                      <span>Serial: {item.serialNumber}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Category: {EQUIPMENT_CATEGORIES.find(cat => cat.id === item.category)?.name} • Last checked: {item.lastChecked}
+                    </p>
+                    {item.notes && (
+                      <p className="text-xs text-gray-600 mt-1 italic">"{item.notes}"</p>
                     )}
-                    
-                    {item.status === 'booked' && (
-                      <div className="text-right">
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                          Check In
-                        </Button>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Due: {item.currentBooking?.endDate}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Booking: {item.currentBooking?.bookingId}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {item.status === 'maintenance' && (
-                      <>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Update
-                        </Button>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          Mark Fixed
-                        </Button>
-                      </>
-                    )}
+                    <div className="flex gap-2 mt-2">
+                      <Badge className={getStatusColor(item.status)}>
+                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                      </Badge>
+                      <Badge className={getConditionColor(item.condition)}>
+                        {item.condition.charAt(0).toUpperCase() + item.condition.slice(1).replace('-', ' ')}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
                 
-                {item.currentBooking && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm"><strong>Customer:</strong> {item.currentBooking.customer}</p>
-                    <p className="text-sm"><strong>Return Due:</strong> {item.currentBooking.endDate}</p>
-                    <p className="text-sm"><strong>Booking ID:</strong> {item.currentBooking.bookingId}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDownloadICal(item.id)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyICalLink(item.id)}
+                  >
+                    <Link className="h-4 w-4" />
+                  </Button>
+                  
+                  {item.status === 'available' && (
+                    <>
+                      <Button size="sm" variant="outline">
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setIsMaintenanceModalOpen(true);
+                        }}
+                      >
+                        <Wrench className="h-4 w-4 mr-1" />
+                        Maintenance
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleDeleteItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {item.currentBooking && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm"><strong>Customer:</strong> {item.currentBooking.customer}</p>
+                  <p className="text-sm"><strong>Return Due:</strong> {item.currentBooking.endDate}</p>
+                  <p className="text-sm"><strong>Booking ID:</strong> {item.currentBooking.bookingId}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
 
         {filteredInventory.length === 0 && (
           <Card>
@@ -343,46 +403,36 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
         )}
       </div>
 
-      {/* Transfer Modal */}
-      {showTransferModal && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <CardHeader>
-              <CardTitle>Transfer Equipment</CardTitle>
-              <CardDescription>
-                Transfer {selectedItem.name} ({selectedItem.id}) to another branch
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium">From: {currentBranch?.name}</p>
-                  <p className="text-sm font-medium">To: {targetBranch?.name}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => setShowTransferModal(false)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      // Handle transfer logic here
-                      setShowTransferModal(false);
-                      setSelectedItem(null);
-                    }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    Confirm Transfer
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Maintenance Modal */}
+      <Dialog open={isMaintenanceModalOpen} onOpenChange={setIsMaintenanceModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Maintenance Block</DialogTitle>
+            <DialogDescription>
+              Mark {selectedItem?.name} ({selectedItem?.id}) for maintenance
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target as HTMLFormElement);
+            const reason = formData.get('reason') as string;
+            if (selectedItem) {
+              handleCreateMaintenanceBlock(selectedItem.id, reason);
+            }
+          }} className="space-y-4">
+            <div>
+              <Label htmlFor="reason">Maintenance Reason</Label>
+              <Textarea id="reason" name="reason" required placeholder="Describe the maintenance required..." />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsMaintenanceModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Maintenance Block</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

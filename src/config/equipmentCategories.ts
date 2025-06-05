@@ -25,9 +25,7 @@ export const BRANCHES = [
 export type BranchId = typeof BRANCHES[number]['id'];
 
 export const USER_ROLES = [
-  { id: 'super-admin', name: 'Super Admin', permissions: ['view-all', 'edit-all', 'manage-users'] },
-  { id: 'branch-manager', name: 'Branch Manager', permissions: ['view-branch', 'edit-branch'] },
-  { id: 'read-only', name: 'Read Only', permissions: ['view-branch'] }
+  { id: 'super-admin', name: 'Super Admin', permissions: ['view-all', 'edit-all', 'manage-users', 'create-bookings', 'manage-inventory'] }
 ] as const;
 
 export type UserRole = typeof USER_ROLES[number]['id'];
@@ -42,6 +40,7 @@ export interface InventoryItem {
   serialNumber: string;
   lastChecked: string;
   condition: 'excellent' | 'good' | 'fair' | 'needs-repair';
+  purchaseDate?: string;
   notes?: string;
   currentBooking?: {
     customer: string;
@@ -56,14 +55,36 @@ export interface BookingBlock {
   equipmentName: string;
   equipmentCategory: EquipmentCategoryId;
   customer: string;
+  customerEmail: string;
+  customerPhone: string;
   startDate: Date;
   endDate: Date;
-  status: 'confirmed' | 'pending' | 'delivered' | 'overdue' | 'maintenance';
+  status: 'pending' | 'confirmed' | 'active' | 'returned' | 'cancelled' | 'overdue';
   branch: BranchId;
   assignedItemId: string;
   deliveryRequired: boolean;
   crossBranchBooking: boolean;
   deliveryFee?: number;
+  totalCost: number;
+  deposit: number;
+  createdBy: 'customer' | 'admin';
+  createdAt: Date;
+  notes?: string;
+}
+
+export interface CreateBookingRequest {
+  category: EquipmentCategoryId;
+  branch: BranchId;
+  startDate: Date;
+  endDate: Date;
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  notes?: string;
+  createdBy: 'customer' | 'admin';
 }
 
 export interface AvailabilityCheck {
@@ -84,3 +105,37 @@ export interface AvailabilityResult {
   };
   message: string;
 }
+
+export interface MaintenanceBlock {
+  id: string;
+  itemId: string;
+  startDate: Date;
+  endDate: Date;
+  reason: string;
+  createdBy: string;
+  createdAt: Date;
+}
+
+// Pricing configuration
+export const PRICING_CONFIG = {
+  deliveryFees: {
+    standard: 50, // R50 for local delivery
+    crossBranch: 150 // R150 for cross-branch delivery
+  },
+  depositPercentage: 0.3, // 30% deposit
+  dailyRates: {
+    'electric-hospital-beds': 45,
+    'electric-wheelchairs': 40,
+    'wheelchairs': 25,
+    'mobility-scooters': 35,
+    'commodes': 20,
+    'electric-bath-lifts': 50,
+    'swivel-bath-chairs': 30,
+    'knee-scooters': 25,
+    'rollators': 20,
+    'walker-frames': 15,
+    'wheelchair-ramps': 40,
+    'hoists': 60,
+    'oxygen-concentrators': 55
+  } as Record<EquipmentCategoryId, number>
+};
