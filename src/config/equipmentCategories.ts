@@ -30,6 +30,25 @@ export const USER_ROLES = [
 
 export type UserRole = typeof USER_ROLES[number]['id'];
 
+// Enhanced Equipment Category with pricing and management
+export interface EquipmentCategory {
+  id: EquipmentCategoryId;
+  name: string;
+  color: string;
+  pricing: {
+    weeklyRate: number;
+    monthlyRate: number;
+  };
+  delivery: {
+    baseFee: number;
+    crossBranchSurcharge: number;
+  };
+  inventory: {
+    hilton: number;
+    johannesburg: number;
+  };
+}
+
 // Enhanced inventory and booking types
 export interface InventoryItem {
   id: string;
@@ -116,7 +135,7 @@ export interface MaintenanceBlock {
   createdAt: Date;
 }
 
-// Pricing configuration
+// Pricing configuration - now moved to be managed per category
 export const PRICING_CONFIG = {
   deliveryFees: {
     standard: 50, // R50 for local delivery

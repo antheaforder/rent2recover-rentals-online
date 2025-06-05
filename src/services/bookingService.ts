@@ -1,4 +1,3 @@
-
 import { 
   InventoryItem, 
   BookingBlock, 
@@ -7,7 +6,9 @@ import {
   AvailabilityResult,
   MaintenanceBlock,
   PRICING_CONFIG,
-  BRANCHES
+  BRANCHES,
+  EquipmentCategory,
+  EquipmentCategoryId
 } from "@/config/equipmentCategories";
 import { isWithinInterval, differenceInDays } from "date-fns";
 
@@ -15,26 +16,87 @@ import { isWithinInterval, differenceInDays } from "date-fns";
 let inventoryStore: InventoryItem[] = [];
 let bookingStore: BookingBlock[] = [];
 let maintenanceStore: MaintenanceBlock[] = [];
+let categoriesStore: EquipmentCategory[] = [];
 
 // Initialize with sample data
 export const initializeMockData = () => {
+  // Initialize categories with default pricing
+  categoriesStore = [
+    {
+      id: 'electric-hospital-beds',
+      name: 'Electric Hospital Beds',
+      color: 'bg-blue-500',
+      pricing: { weeklyRate: 315, monthlyRate: 1200 },
+      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
+      inventory: { hilton: 2, johannesburg: 1 }
+    },
+    {
+      id: 'wheelchairs',
+      name: 'Wheelchairs',
+      color: 'bg-purple-500',
+      pricing: { weeklyRate: 175, monthlyRate: 650 },
+      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
+      inventory: { hilton: 1, johannesburg: 1 }
+    },
+    {
+      id: 'mobility-scooters',
+      name: 'Mobility Scooters',
+      color: 'bg-yellow-500',
+      pricing: { weeklyRate: 245, monthlyRate: 900 },
+      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
+      inventory: { hilton: 1, johannesburg: 1 }
+    }
+  ];
+
   inventoryStore = [
     // Electric Hospital Beds
-    { id: "EHB001", name: "Electric Hospital Bed Model A", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
-    { id: "EHB002", name: "Electric Hospital Bed Model B", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-002", lastChecked: "2024-01-10", condition: "good" },
-    { id: "EHB003", name: "Electric Hospital Bed Model A", category: "electric-hospital-beds", status: "available", branch: "johannesburg", serialNumber: "EHB-2024-003", lastChecked: "2024-01-12", condition: "excellent" },
+    { id: "EHB001", name: "ElectricHospitalBeds Hilton 1", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
+    { id: "EHB002", name: "ElectricHospitalBeds Hilton 2", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-002", lastChecked: "2024-01-10", condition: "good" },
+    { id: "EHB003", name: "ElectricHospitalBeds Joburg 1", category: "electric-hospital-beds", status: "available", branch: "johannesburg", serialNumber: "EHB-2024-003", lastChecked: "2024-01-12", condition: "excellent" },
     
     // Wheelchairs
-    { id: "WC001", name: "Standard Manual Wheelchair", category: "wheelchairs", status: "available", branch: "hilton", serialNumber: "WC-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
-    { id: "WC002", name: "Lightweight Wheelchair", category: "wheelchairs", status: "available", branch: "johannesburg", serialNumber: "WC-2024-002", lastChecked: "2024-01-10", condition: "good" },
+    { id: "WC001", name: "Wheelchairs Hilton 1", category: "wheelchairs", status: "available", branch: "hilton", serialNumber: "WC-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
+    { id: "WC002", name: "Wheelchairs Joburg 1", category: "wheelchairs", status: "available", branch: "johannesburg", serialNumber: "WC-2024-002", lastChecked: "2024-01-10", condition: "good" },
     
     // Mobility Scooters
-    { id: "MS001", name: "4-Wheel Mobility Scooter", category: "mobility-scooters", status: "available", branch: "hilton", serialNumber: "MS-2024-001", lastChecked: "2024-01-13", condition: "excellent" },
-    { id: "MS002", name: "3-Wheel Mobility Scooter", category: "mobility-scooters", status: "available", branch: "johannesburg", serialNumber: "MS-2024-002", lastChecked: "2024-01-11", condition: "good" }
+    { id: "MS001", name: "MobilityScooters Hilton 1", category: "mobility-scooters", status: "available", branch: "hilton", serialNumber: "MS-2024-001", lastChecked: "2024-01-13", condition: "excellent" },
+    { id: "MS002", name: "MobilityScooters Joburg 1", category: "mobility-scooters", status: "available", branch: "johannesburg", serialNumber: "MS-2024-002", lastChecked: "2024-01-11", condition: "good" }
   ];
 
   bookingStore = [];
   maintenanceStore = [];
+};
+
+// Equipment Categories Management
+export const getEquipmentCategories = (): EquipmentCategory[] => categoriesStore;
+
+export const updateCategoryPricing = (categoryId: EquipmentCategoryId, updates: { pricing: any; delivery: any }) => {
+  const index = categoriesStore.findIndex(cat => cat.id === categoryId);
+  if (index !== -1) {
+    categoriesStore[index] = {
+      ...categoriesStore[index],
+      pricing: updates.pricing,
+      delivery: updates.delivery
+    };
+  }
+};
+
+// Check-in/Check-out functionality
+export const checkInItem = (itemId: string) => {
+  const index = inventoryStore.findIndex(item => item.id === itemId);
+  if (index !== -1) {
+    inventoryStore[index].status = 'available';
+    inventoryStore[index].currentBooking = undefined;
+    inventoryStore[index].lastChecked = new Date().toISOString().split('T')[0];
+  }
+};
+
+export const checkOutItem = (itemId: string) => {
+  const index = inventoryStore.findIndex(item => item.id === itemId);
+  if (index !== -1) {
+    inventoryStore[index].status = 'booked';
+    inventoryStore[index].lastChecked = new Date().toISOString().split('T')[0];
+  }
 };
 
 // Availability checking logic
