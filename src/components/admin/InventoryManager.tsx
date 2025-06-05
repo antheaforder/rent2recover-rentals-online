@@ -9,10 +9,10 @@ import {
   generateICalForItem
 } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
-import { type InventoryItem } from "@/config/equipmentCategories";
+import { type InventoryItem as InventoryItemType } from "@/config/equipmentCategories";
 import InventoryHeader from "@/components/admin/inventory/InventoryHeader";
 import InventoryFilters from "@/components/admin/inventory/InventoryFilters";
-import InventoryItem from "@/components/admin/inventory/InventoryItem";
+import InventoryItemComponent from "@/components/admin/inventory/InventoryItem";
 import InventoryModals from "@/components/admin/inventory/InventoryModals";
 import InventoryEmptyState from "@/components/admin/inventory/InventoryEmptyState";
 
@@ -24,10 +24,10 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [inventory, setInventory] = useState<InventoryItem[]>(() => getInventoryByBranch(branch));
+  const [inventory, setInventory] = useState<InventoryItemType[]>(() => getInventoryByBranch(branch));
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
   const { toast } = useToast();
 
   const filteredInventory = inventory.filter(item => {
@@ -133,7 +133,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
     });
   };
 
-  const handleMaintenanceClick = (item: InventoryItem) => {
+  const handleMaintenanceClick = (item: InventoryItemType) => {
     setSelectedItem(item);
     setIsMaintenanceModalOpen(true);
   };
@@ -156,7 +156,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 
       <div className="grid gap-4">
         {filteredInventory.map((item) => (
-          <InventoryItem
+          <InventoryItemComponent
             key={item.id}
             item={item}
             onDownloadICal={handleDownloadICal}
