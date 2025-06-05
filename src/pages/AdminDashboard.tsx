@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { USER_ROLES, type UserRole } from "@/config/equipmentCategories";
 import AdminHeader from "@/components/admin/AdminHeader";
 import AdminTabs from "@/components/admin/AdminTabs";
-import AdminTabContent from "@/components/admin/AdminTabContent";
 import CreateBookingModal from "@/components/admin/CreateBookingModal";
 
 const AdminDashboard = () => {
@@ -47,11 +46,7 @@ const AdminDashboard = () => {
           activeTab={activeTab} 
           onTabChange={setActiveTab}
           canEditEquipment={canEditEquipment}
-        />
-        
-        <AdminTabContent 
           branch={branch}
-          canEditEquipment={canEditEquipment}
           canViewAllBranches={canViewAllBranches}
         />
       </div>
