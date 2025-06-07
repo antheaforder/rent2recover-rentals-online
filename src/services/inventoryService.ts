@@ -13,10 +13,14 @@ export const getInventoryByCategory = (category: string) =>
 
 export const addInventoryItem = (item: Omit<InventoryItem, 'id'>) => {
   const inventory = getInventoryStore();
+  
+  // Generate unique ID using category prefix and timestamp
+  const categoryPrefix = item.category.toUpperCase().slice(0, 3);
   const newItem: InventoryItem = {
     ...item,
-    id: `${item.category.toUpperCase().slice(0, 3)}${Date.now()}`
+    id: item.serialNumber || `${categoryPrefix}${Date.now()}`
   };
+  
   setInventoryStore([...inventory, newItem]);
   return newItem;
 };
@@ -78,4 +82,30 @@ export const checkOutItem = (itemId: string) => {
     updatedInventory[index].lastChecked = new Date().toISOString().split('T')[0];
     setInventoryStore(updatedInventory);
   }
+};
+
+// Generate next available item name for a category and branch
+export const generateNextItemName = (category: string, branch: string) => {
+  const inventory = getInventoryByCategory(category);
+  const branchItems = inventory.filter(item => item.branch === branch);
+  const nextNumber = branchItems.length + 1;
+  
+  // Convert category ID to proper name format
+  const categoryName = category.split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join('');
+  
+  const branchName = branch === 'hilton' ? 'Hilton' : 'Joburg';
+  
+  return `${categoryName} ${branchName} ${nextNumber}`;
+};
+
+// Generate serial number
+export const generateSerialNumber = (category: string) => {
+  const prefix = category.toUpperCase().slice(0, 3);
+  const year = new Date().getFullYear();
+  const inventory = getInventoryByCategory(category);
+  const nextNumber = inventory.length + 1;
+  
+  return `${prefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
 };

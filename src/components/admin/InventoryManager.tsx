@@ -10,17 +10,21 @@ import {
   ArrowRight, 
   Edit,
   Users,
-  MapPin
+  MapPin,
+  Image as ImageIcon
 } from "lucide-react";
 import { 
   getInventoryByBranch, 
   getEquipmentCategories,
-  updateCategoryPricing
+  updateCategoryPricing,
+  addInventoryItem,
+  updateInventoryItem
 } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
-import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId } from "@/config/equipmentCategories";
+import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type EquipmentCategory } from "@/config/equipmentCategories";
 import CategoryDetailsView from "@/components/admin/inventory/CategoryDetailsView";
-import CategorySettingsModal from "@/components/admin/inventory/CategorySettingsModal";
+import CategoryManagerModal from "@/components/admin/inventory/CategoryManagerModal";
+import EquipmentItemModal from "@/components/admin/inventory/EquipmentItemModal";
 
 interface InventoryManagerProps {
   branch: string;
@@ -28,8 +32,10 @@ interface InventoryManagerProps {
 
 const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const [selectedCategory, setSelectedCategory] = useState<EquipmentCategoryId | null>(null);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsCategory, setSettingsCategory] = useState<EquipmentCategoryId | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [modalCategory, setModalCategory] = useState<EquipmentCategoryId | null>(null);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const { toast } = useToast();
 
   const categories = getEquipmentCategories();
@@ -40,23 +46,73 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
     return inventory.filter(item => item.category === categoryId).length;
   };
 
-  const handleCategorySettingsClick = (categoryId: EquipmentCategoryId) => {
-    setSettingsCategory(categoryId);
-    setIsSettingsModalOpen(true);
+  const getAvailableCount = (categoryId: EquipmentCategoryId, branchId: string) => {
+    const inventory = getInventoryByBranch(branchId);
+    return inventory.filter(item => item.category === categoryId && item.status === 'available').length;
   };
 
-  const handleUpdateCategoryPricing = async (categoryId: EquipmentCategoryId, pricing: any) => {
+  const handleCategorySettingsClick = (categoryId: EquipmentCategoryId) => {
+    setModalCategory(categoryId);
+    setModalMode('edit');
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleAddNewCategory = () => {
+    setModalCategory(null);
+    setModalMode('add');
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleAddItemClick = (categoryId: EquipmentCategoryId) => {
+    setModalCategory(categoryId);
+    setModalMode('add');
+    setIsItemModalOpen(true);
+  };
+
+  const handleUpdateCategory = async (categoryId: EquipmentCategoryId, updates: Partial<EquipmentCategory>) => {
     try {
-      updateCategoryPricing(categoryId, pricing);
-      setIsSettingsModalOpen(false);
+      updateCategoryPricing(categoryId, {
+        pricing: updates.pricing,
+        delivery: updates.delivery
+      });
+      setIsCategoryModalOpen(false);
       toast({
         title: "Category Updated",
-        description: "Pricing and delivery settings have been saved"
+        description: "Category settings have been saved successfully"
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update category settings",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveItem = async (itemData: any) => {
+    try {
+      if (modalMode === 'add') {
+        addInventoryItem({
+          name: itemData.name,
+          category: itemData.category,
+          branch: itemData.branch,
+          serialNumber: itemData.serialNumber,
+          condition: itemData.condition,
+          status: itemData.status,
+          lastChecked: itemData.lastChecked,
+          notes: itemData.notes,
+          purchaseDate: itemData.purchaseDate
+        });
+        toast({
+          title: "Item Added",
+          description: `${itemData.name} has been added to inventory`
+        });
+      }
+      setIsItemModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save item",
         variant: "destructive"
       });
     }
@@ -79,10 +135,16 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           <h2 className="text-2xl font-bold">Equipment Categories</h2>
           <p className="text-gray-600">Manage equipment categories and inventory for {currentBranch?.name}</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Category
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleAddNewCategory}
+            className="bg-green-50 hover:bg-green-100 border-green-200"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -91,15 +153,32 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           const johannesburgCount = getCategoryInventoryCount(category.id, 'johannesburg');
           const totalCount = hiltonCount + johannesburgCount;
           const currentBranchCount = getCategoryInventoryCount(category.id, branch);
+          const availableCount = getAvailableCount(category.id, branch);
+          
+          const categoryData = categories.find(c => c.id === category.id);
           
           return (
             <Card key={category.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 ${category.color} rounded-lg`}>
-                      <Package className="h-6 w-6 text-white" />
+                    {/* Category Image or Icon */}
+                    <div className="relative">
+                      {categoryData?.imageUrl ? (
+                        <div className="w-16 h-16 rounded-lg overflow-hidden">
+                          <img 
+                            src={categoryData.imageUrl} 
+                            alt={category.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`p-3 ${category.color} rounded-lg`}>
+                          <Package className="h-6 w-6 text-white" />
+                        </div>
+                      )}
                     </div>
+                    
                     <div>
                       <h3 className="font-semibold text-lg">{category.name}</h3>
                       <div className="flex gap-4 text-sm text-gray-600 mt-1">
@@ -118,16 +197,28 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                       </div>
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline">
-                          Weekly: R{categories.find(c => c.id === category.id)?.pricing.weeklyRate || 0}
+                          Weekly: R{categoryData?.pricing.weeklyRate || 0}
                         </Badge>
                         <Badge variant="outline">
-                          Monthly: R{categories.find(c => c.id === category.id)?.pricing.monthlyRate || 0}
+                          Monthly: R{categoryData?.pricing.monthlyRate || 0}
+                        </Badge>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          {availableCount} Available
                         </Badge>
                       </div>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAddItemClick(category.id)}
+                      className="text-green-600 hover:bg-green-50"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Item
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -151,11 +242,23 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
         })}
       </div>
 
-      <CategorySettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        category={settingsCategory}
-        onUpdate={handleUpdateCategoryPricing}
+      {/* Category Manager Modal */}
+      <CategoryManagerModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        category={modalCategory}
+        onUpdate={handleUpdateCategory}
+        mode={modalMode}
+      />
+
+      {/* Equipment Item Modal */}
+      <EquipmentItemModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        category={modalCategory!}
+        branch={branch}
+        onSave={handleSaveItem}
+        mode={modalMode}
       />
     </div>
   );

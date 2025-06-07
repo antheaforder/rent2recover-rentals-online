@@ -35,6 +35,7 @@ export interface EquipmentCategory {
   id: EquipmentCategoryId;
   name: string;
   color: string;
+  imageUrl?: string;
   pricing: {
     weeklyRate: number;
     monthlyRate: number;
@@ -47,6 +48,7 @@ export interface EquipmentCategory {
     hilton: number;
     johannesburg: number;
   };
+  createdAt?: Date;
 }
 
 // Enhanced inventory and booking types
