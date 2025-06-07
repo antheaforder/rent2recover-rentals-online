@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -17,7 +19,10 @@ import {
   Link,
   MapPin,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Eye,
+  Edit,
+  Filter
 } from "lucide-react";
 import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval } from "date-fns";
 import { 
@@ -33,8 +38,11 @@ import {
   getInventory, 
   getBookings, 
   checkAvailability, 
-  generateICalForItem 
+  generateICalForItem,
+  updateBookingStatus
 } from "@/services/bookingService";
+import BookingDetailModal from "./BookingDetailModal";
+import EditBookingModal from "./EditBookingModal";
 
 interface BookingCalendarProps {
   branch: string;
@@ -44,27 +52,64 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewType, setViewType] = useState<'week' | 'month'>('week');
   const [equipmentFilter, setEquipmentFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState(branch);
   const [showCrossBranch, setShowCrossBranch] = useState(true);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<string | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingBlock | null>(null);
+  const [editingBooking, setEditingBooking] = useState<BookingBlock | null>(null);
+  const [dayBookingsModal, setDayBookingsModal] = useState<{
+    date: Date;
+    bookings: BookingBlock[];
+  } | null>(null);
   
   // State for real data
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [bookings, setBookings] = useState<BookingBlock[]>([]);
 
-  // Load data on component mount
+  // Load data on component mount and when branch changes
   useEffect(() => {
     setInventoryItems(getInventory());
     setBookings(getBookings());
   }, []);
 
+  // Update branch filter when prop changes
+  useEffect(() => {
+    setBranchFilter(branch);
+  }, [branch]);
+
   // Filter bookings based on current selections
   const filteredBookings = useMemo(() => {
     return bookings.filter(booking => {
-      const matchesBranch = showCrossBranch || booking.branch === branch;
+      const matchesBranch = showCrossBranch || branchFilter === 'all' || booking.branch === branchFilter;
       const matchesCategory = equipmentFilter === 'all' || booking.equipmentCategory === equipmentFilter;
       return matchesBranch && matchesCategory;
     });
-  }, [bookings, showCrossBranch, branch, equipmentFilter]);
+  }, [bookings, showCrossBranch, branchFilter, equipmentFilter]);
+
+  // Calculate availability counts for calendar display
+  const getAvailabilityCounts = (category: EquipmentCategoryId, date: Date, targetBranch?: BranchId) => {
+    const categoryInventory = inventoryItems.filter(item => 
+      item.category === category && 
+      (!targetBranch || item.branch === targetBranch)
+    );
+    
+    const dayStart = new Date(date);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59);
+    
+    const bookedItems = filteredBookings.filter(booking => 
+      booking.equipmentCategory === category &&
+      booking.startDate <= dayEnd && 
+      booking.endDate >= dayStart &&
+      (!targetBranch || booking.branch === targetBranch)
+    );
+
+    const totalItems = categoryInventory.length;
+    const bookedCount = bookedItems.length;
+    const availableCount = Math.max(0, totalItems - bookedCount);
+
+    return { totalItems, bookedCount, availableCount };
+  };
 
   // Generate iCal feed for a specific inventory item
   const handleGenerateICalFeed = (inventoryItemId: string) => {
@@ -81,10 +126,8 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
   };
 
   const copyICalLink = (inventoryItemId: string) => {
-    // In a real app, this would be a public URL to the iCal feed
     const icalUrl = `https://rent2recover.com/api/ical/${inventoryItemId}`;
     navigator.clipboard.writeText(icalUrl);
-    // Show toast notification
     console.log('iCal link copied to clipboard:', icalUrl);
   };
 
@@ -111,7 +154,24 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     return eachDayOfInterval({ start, end });
   };
 
-  // Enhanced week view with cross-branch visibility
+  const handleBookingStatusChange = (bookingId: string, newStatus: BookingBlock['status']) => {
+    updateBookingStatus(bookingId, newStatus);
+    setBookings(getBookings()); // Refresh data
+  };
+
+  const handleDayClick = (date: Date) => {
+    const dayStart = new Date(date);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59);
+    
+    const dayBookings = filteredBookings.filter(booking => 
+      booking.startDate <= dayEnd && booking.endDate >= dayStart
+    );
+    
+    setDayBookingsModal({ date, bookings: dayBookings });
+  };
+
+  // Enhanced week view with availability counts
   const renderWeekView = () => {
     const weekDays = getWeekDays(selectedDate);
     const categoriesToShow = equipmentFilter === 'all' 
@@ -144,21 +204,6 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
           </div>
         </div>
 
-        {/* Cross-branch toggle */}
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="cross-branch"
-            checked={showCrossBranch}
-            onCheckedChange={setShowCrossBranch}
-          />
-          <Label htmlFor="cross-branch">Show both branches</Label>
-          {showCrossBranch && (
-            <Badge variant="outline" className="ml-2">
-              Viewing: All Branches
-            </Badge>
-          )}
-        </div>
-
         {/* Calendar Grid */}
         <div className="grid grid-cols-8 gap-2">
           {/* Header Row */}
@@ -176,58 +221,25 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
               <div className="p-3 border-r font-medium text-sm bg-gray-50 flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
                 <span className="truncate">{category.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => {
-                    const request: AvailabilityCheck = {
-                      category: category.id,
-                      branch: branch as BranchId,
-                      startDate: weekDays[0],
-                      endDate: weekDays[6],
-                      requestedQuantity: 1
-                    };
-                    const result = checkAvailability(request);
-                    console.log('Availability check:', result);
-                  }}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                </Button>
               </div>
               {weekDays.map(day => {
-                const dayBookings = filteredBookings.filter(booking => {
-                  const dayStart = new Date(day);
-                  const dayEnd = new Date(day);
-                  dayEnd.setHours(23, 59, 59);
-                  return booking.equipmentCategory === category.id &&
-                         booking.startDate <= dayEnd && 
-                         booking.endDate >= dayStart;
-                });
-
+                const targetBranch = branchFilter === 'all' ? undefined : branchFilter as BranchId;
+                const counts = getAvailabilityCounts(category.id, day, targetBranch);
+                
                 return (
-                  <div key={`${category.id}-${day.toISOString()}`} className="p-1 border border-gray-200 min-h-16">
-                    {dayBookings.map(booking => (
-                      <div
-                        key={booking.id}
-                        className={`text-xs p-1 rounded border cursor-pointer mb-1 ${getStatusColor(booking.status)}`}
-                        title={`${booking.customer} - ${booking.equipmentName} (${booking.assignedItemId})`}
-                        onClick={() => setSelectedInventoryItem(booking.assignedItemId)}
-                      >
-                        <div className="font-medium truncate flex items-center gap-1">
-                          {booking.assignedItemId}
-                          {booking.crossBranchBooking && (
-                            <MapPin className="h-3 w-3" />
-                          )}
-                        </div>
-                        <div className="truncate">{booking.customer}</div>
-                        {showCrossBranch && (
-                          <Badge variant="outline" className="text-xs">
-                            {BRANCHES.find(b => b.id === booking.branch)?.name.split(' ')[0]}
-                          </Badge>
-                        )}
+                  <div 
+                    key={`${category.id}-${day.toISOString()}`} 
+                    className="p-2 border border-gray-200 min-h-16 cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleDayClick(day)}
+                  >
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-blue-600">
+                        🟦 {counts.bookedCount} Booked
                       </div>
-                    ))}
+                      <div className="text-xs font-medium text-green-600">
+                        🟩 {counts.availableCount} Available
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -254,7 +266,12 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={(date) => {
+              if (date) {
+                setSelectedDate(date);
+                handleDayClick(date);
+              }
+            }}
             className="rounded-md border"
           />
         </div>
@@ -286,16 +303,16 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleGenerateICalFeed(booking.assignedItemId)}
+                        onClick={() => setSelectedBooking(booking)}
                       >
-                        <Download className="h-3 w-3" />
+                        <Eye className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => copyICalLink(booking.assignedItemId)}
+                        onClick={() => setEditingBooking(booking)}
                       >
-                        <Link className="h-3 w-3" />
+                        <Edit className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
@@ -316,14 +333,6 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
                       <MapPin className="h-3 w-3" />
                       <span>{BRANCHES.find(b => b.id === booking.branch)?.name}</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Category: {category?.name}
-                    </div>
-                    {item && (
-                      <div className="text-xs text-gray-500">
-                        Serial: {item.serialNumber} | Condition: {item.condition}
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -340,7 +349,7 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     );
   };
 
-  const currentBranch = BRANCHES.find(b => b.id === branch);
+  const currentBranch = BRANCHES.find(b => b.id === branchFilter);
 
   return (
     <div className="space-y-6">
@@ -353,6 +362,19 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              {BRANCHES.map(branch => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={equipmentFilter} onValueChange={setEquipmentFilter}>
             <SelectTrigger className="w-64">
               <SelectValue placeholder="Filter by category" />
@@ -383,6 +405,19 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
         </div>
       </div>
 
+      {/* Cross-branch toggle */}
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="cross-branch"
+          checked={showCrossBranch}
+          onCheckedChange={setShowCrossBranch}
+        />
+        <Label htmlFor="cross-branch">Show both branches</Label>
+        {showCrossBranch && (
+          <span className="ml-2 text-sm text-gray-500">Viewing: All Branches</span>
+        )}
+      </div>
+
       {/* Calendar View */}
       <Card>
         <CardHeader>
@@ -397,8 +432,8 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
           </CardTitle>
           <CardDescription>
             {viewType === 'week' 
-              ? 'Equipment availability and bookings by week and category. Supports cross-branch viewing and conflict detection.'
-              : 'Select a date to view daily bookings by category with iCal export options.'
+              ? 'Equipment availability and bookings by week and category with availability counts.'
+              : 'Select a date to view daily bookings with detailed management options.'
             }
           </CardDescription>
         </CardHeader>
@@ -407,145 +442,192 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
         </CardContent>
       </Card>
 
-      {/* Enhanced Status Legend */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Calendar Legend & Features</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Booking Status Colors</h4>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-                  <span className="text-sm">Confirmed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
-                  <span className="text-sm">Pending</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-                  <span className="text-sm">Active</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
-                  <span className="text-sm">Overdue</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-                  <span className="text-sm">Returned</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-                  <span className="text-sm">Cancelled</span>
-                </div>
+      {/* Day Bookings Modal */}
+      <Dialog open={!!dayBookingsModal} onOpenChange={() => setDayBookingsModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Bookings for {dayBookingsModal?.date && format(dayBookingsModal.date, "MMMM dd, yyyy")}
+            </DialogTitle>
+          </DialogHeader>
+          {dayBookingsModal && (
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="grid grid-cols-2 gap-4">
+                <Select value={branchFilter} onValueChange={setBranchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {BRANCHES.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={equipmentFilter} onValueChange={setEquipmentFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {EQUIPMENT_CATEGORIES.map(category => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-2">Equipment Categories (13 Total)</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {EQUIPMENT_CATEGORIES.map(category => (
-                  <div key={category.id} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
-                    <span className="text-xs">{category.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            <div>
-              <h4 className="font-semibold mb-2">Features</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>Cross-branch availability checking</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  <span>Individual item iCal export</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Link className="h-4 w-4" />
-                  <span>Shareable calendar links</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>Cross-branch booking indicators</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>Conflict detection & prevention</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  <span>Per-item calendar management</span>
-                </div>
+              {/* Bookings List */}
+              <div className="space-y-3">
+                {dayBookingsModal.bookings.map(booking => {
+                  const category = EQUIPMENT_CATEGORIES.find(cat => cat.id === booking.equipmentCategory);
+                  return (
+                    <div key={booking.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-4 h-4 rounded-full ${category?.color || 'bg-gray-500'}`}></div>
+                          <div>
+                            <span className="font-medium">Booking #{booking.id}</span>
+                            <span className="mx-2">•</span>
+                            <span className="text-gray-600">{category?.name}</span>
+                          </div>
+                          <Badge className={getStatusColor(booking.status)}>
+                            {booking.status}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedBooking(booking)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingBooking(booking)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div>
+                          <strong>Client:</strong> {booking.customer}
+                        </div>
+                        <div>
+                          <strong>Branch:</strong> {BRANCHES.find(b => b.id === booking.branch)?.name}
+                        </div>
+                        <div>
+                          <strong>Equipment:</strong> {booking.equipmentName}
+                        </div>
+                        <div>
+                          <strong>Duration:</strong> {format(booking.startDate, 'MMM dd')} - {format(booking.endDate, 'MMM dd')}
+                        </div>
+                      </div>
+                      {booking.notes && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          <strong>Notes:</strong> {booking.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                
+                {dayBookingsModal.bookings.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No bookings for this date
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Booking Detail Modal */}
+      {selectedBooking && (
+        <BookingDetailModal
+          booking={selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+          onStatusChange={handleBookingStatusChange}
+        />
+      )}
+
+      {/* Edit Booking Modal */}
+      {editingBooking && (
+        <EditBookingModal
+          booking={editingBooking}
+          onClose={() => setEditingBooking(null)}
+          onSave={(updatedBooking) => {
+            // Handle booking update
+            setBookings(getBookings()); // Refresh data
+            setEditingBooking(null);
+          }}
+        />
+      )}
 
       {/* Inventory Item Detail Modal */}
       {selectedInventoryItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-96 max-h-96 overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Equipment Details</CardTitle>
-              <CardDescription>
-                {selectedInventoryItem} - Calendar & iCal Options
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {(() => {
-                  const item = inventoryItems.find(i => i.id === selectedInventoryItem);
-                  if (!item) return null;
-                  
-                  return (
-                    <>
-                      <div className="space-y-2">
-                        <p><strong>Name:</strong> {item.name}</p>
-                        <p><strong>Category:</strong> {EQUIPMENT_CATEGORIES.find(c => c.id === item.category)?.name}</p>
-                        <p><strong>Branch:</strong> {BRANCHES.find(b => b.id === item.branch)?.name}</p>
-                        <p><strong>Status:</strong> <Badge className={getStatusColor(item.status)}>{item.status}</Badge></p>
-                        <p><strong>Serial:</strong> {item.serialNumber}</p>
-                        <p><strong>Condition:</strong> {item.condition}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleGenerateICalFeed(selectedInventoryItem)}
-                          className="flex-1"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download iCal
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => copyICalLink(selectedInventoryItem)}
-                          className="flex-1"
-                        >
-                          <Link className="h-4 w-4 mr-2" />
-                          Copy Link
-                        </Button>
-                      </div>
-                    </>
-                  );
-                })()}
-                <Button 
-                  onClick={() => setSelectedInventoryItem(null)}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Dialog open={true} onOpenChange={() => setSelectedInventoryItem(null)}>
+          <DialogContent className="w-96">
+            <DialogHeader>
+              <DialogTitle>Equipment Details</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {(() => {
+                const item = inventoryItems.find(i => i.id === selectedInventoryItem);
+                if (!item) return null;
+                
+                return (
+                  <>
+                    <div className="space-y-2">
+                      <p><strong>Name:</strong> {item.name}</p>
+                      <p><strong>Category:</strong> {EQUIPMENT_CATEGORIES.find(c => c.id === item.category)?.name}</p>
+                      <p><strong>Branch:</strong> {BRANCHES.find(b => b.id === item.branch)?.name}</p>
+                      <p><strong>Status:</strong> <Badge className={getStatusColor(item.status)}>{item.status}</Badge></p>
+                      <p><strong>Serial:</strong> {item.serialNumber}</p>
+                      <p><strong>Condition:</strong> {item.condition}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleGenerateICalFeed(selectedInventoryItem)}
+                        className="flex-1"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download iCal
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => copyICalLink(selectedInventoryItem)}
+                        className="flex-1"
+                      >
+                        <Link className="h-4 w-4 mr-2" />
+                        Copy Link
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
+              <Button 
+                onClick={() => setSelectedInventoryItem(null)}
+                variant="outline"
+                className="w-full"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

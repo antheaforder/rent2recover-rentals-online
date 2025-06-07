@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import {
   Filter, 
   Download, 
   Eye, 
+  Edit,
   CheckCircle, 
   Clock, 
   AlertTriangle,
@@ -19,35 +20,14 @@ import {
   Calendar,
   User
 } from "lucide-react";
+import { format } from "date-fns";
+import { BookingBlock, EQUIPMENT_CATEGORIES, BRANCHES } from "@/config/equipmentCategories";
+import { getBookings, updateBookingStatus } from "@/services/bookingService";
+import BookingDetailModal from "./BookingDetailModal";
+import EditBookingModal from "./EditBookingModal";
 
 interface BookingManagerProps {
   branch: string;
-}
-
-interface Booking {
-  id: string;
-  quoteId: string;
-  customer: {
-    name: string;
-    phone: string;
-    email: string;
-  };
-  equipment: {
-    id: string;
-    name: string;
-    category: string;
-  };
-  dates: {
-    start: string;
-    end: string;
-    duration: number;
-  };
-  status: 'pending' | 'paid' | 'active' | 'returned' | 'overdue' | 'cancelled';
-  branch: string;
-  totalCost: number;
-  deposit: number;
-  createdAt: string;
-  requiresDelivery: boolean;
 }
 
 const BookingManager = ({ branch }: BookingManagerProps) => {
@@ -55,94 +35,23 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [equipmentFilter, setEquipmentFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [selectedBooking, setSelectedBooking] = useState<BookingBlock | null>(null);
+  const [editingBooking, setEditingBooking] = useState<BookingBlock | null>(null);
+  const [bookings, setBookings] = useState<BookingBlock[]>([]);
 
-  // Mock booking data
-  const bookings: Booking[] = [
-    {
-      id: "B001",
-      quoteId: "Q001",
-      customer: {
-        name: "John Smith",
-        phone: "+27 81 234 5678",
-        email: "john@example.com"
-      },
-      equipment: {
-        id: "WC001",
-        name: "Standard Wheelchair",
-        category: "wheelchairs"
-      },
-      dates: {
-        start: "2024-01-15",
-        end: "2024-01-22",
-        duration: 7
-      },
-      status: "active",
-      branch: "hilton",
-      totalCost: 450,
-      deposit: 135,
-      createdAt: "2024-01-10",
-      requiresDelivery: true
-    },
-    {
-      id: "B002",
-      quoteId: "Q002", 
-      customer: {
-        name: "Sarah Johnson",
-        phone: "+27 82 345 6789",
-        email: "sarah@example.com"
-      },
-      equipment: {
-        id: "MS001",
-        name: "4-Wheel Mobility Scooter",
-        category: "scooters"
-      },
-      dates: {
-        start: "2024-01-18",
-        end: "2024-01-25",
-        duration: 7
-      },
-      status: "paid",
-      branch: "hilton",
-      totalCost: 850,
-      deposit: 255,
-      createdAt: "2024-01-12",
-      requiresDelivery: false
-    },
-    {
-      id: "B003",
-      quoteId: "Q003",
-      customer: {
-        name: "Mike Wilson", 
-        phone: "+27 83 456 7890",
-        email: "mike@example.com"
-      },
-      equipment: {
-        id: "HB001",
-        name: "Electric Hospital Bed",
-        category: "beds"
-      },
-      dates: {
-        start: "2024-01-20",
-        end: "2024-01-27", 
-        duration: 7
-      },
-      status: "pending",
-      branch: "hilton",
-      totalCost: 1200,
-      deposit: 360,
-      createdAt: "2024-01-15",
-      requiresDelivery: true
-    }
-  ];
+  // Load bookings on component mount
+  useEffect(() => {
+    setBookings(getBookings());
+  }, []);
 
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = 
       booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
+      booking.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.equipmentName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
-    const matchesEquipment = equipmentFilter === "all" || booking.equipment.category === equipmentFilter;
+    const matchesEquipment = equipmentFilter === "all" || booking.equipmentCategory === equipmentFilter;
     const matchesBranch = booking.branch === branch;
     
     return matchesSearch && matchesStatus && matchesEquipment && matchesBranch;
@@ -151,7 +60,7 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'paid': return 'bg-blue-100 text-blue-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
       case 'active': return 'bg-green-100 text-green-800';
       case 'returned': return 'bg-gray-100 text-gray-800';
       case 'overdue': return 'bg-red-100 text-red-800';
@@ -163,7 +72,7 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return Clock;
-      case 'paid': return CreditCard;
+      case 'confirmed': return CreditCard;
       case 'active': return CheckCircle;
       case 'returned': return Package;
       case 'overdue': return AlertTriangle;
@@ -172,15 +81,26 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
     }
   };
 
+  const handleStatusChange = (bookingId: string, newStatus: BookingBlock['status']) => {
+    updateBookingStatus(bookingId, newStatus);
+    setBookings(getBookings()); // Refresh data
+  };
+
+  const handleBookingUpdate = (updatedBooking: BookingBlock) => {
+    // In a real app, this would make an API call
+    setBookings(getBookings()); // Refresh data
+    setEditingBooking(null);
+  };
+
   const exportToCSV = () => {
     const csvContent = [
       ['Booking ID', 'Customer', 'Equipment', 'Start Date', 'End Date', 'Status', 'Total Cost'].join(','),
       ...filteredBookings.map(booking => [
         booking.id,
-        booking.customer.name,
-        booking.equipment.name,
-        booking.dates.start,
-        booking.dates.end,
+        booking.customer,
+        booking.equipmentName,
+        format(booking.startDate, 'yyyy-MM-dd'),
+        format(booking.endDate, 'yyyy-MM-dd'),
         booking.status,
         `R${booking.totalCost}`
       ].join(','))
@@ -195,6 +115,43 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const getActionButton = (booking: BookingBlock) => {
+    switch (booking.status) {
+      case 'pending':
+        return (
+          <Button 
+            size="sm" 
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => handleStatusChange(booking.id, 'confirmed')}
+          >
+            Approve
+          </Button>
+        );
+      case 'confirmed':
+        return (
+          <Button 
+            size="sm" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => handleStatusChange(booking.id, 'active')}
+          >
+            Dispatch
+          </Button>
+        );
+      case 'active':
+        return (
+          <Button 
+            size="sm" 
+            className="bg-purple-600 hover:bg-purple-700"
+            onClick={() => handleStatusChange(booking.id, 'returned')}
+          >
+            Complete
+          </Button>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -235,7 +192,7 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="returned">Returned</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
@@ -249,10 +206,11 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Equipment</SelectItem>
-                <SelectItem value="wheelchairs">Wheelchairs</SelectItem>
-                <SelectItem value="scooters">Scooters</SelectItem>
-                <SelectItem value="beds">Beds</SelectItem>
-                <SelectItem value="walkers">Walkers</SelectItem>
+                {EQUIPMENT_CATEGORIES.map(category => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -297,35 +255,41 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
               <TableBody>
                 {filteredBookings.map((booking) => {
                   const StatusIcon = getStatusIcon(booking.status);
+                  const category = EQUIPMENT_CATEGORIES.find(cat => cat.id === booking.equipmentCategory);
                   return (
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">
                         <div>
                           <div>{booking.id}</div>
-                          <div className="text-xs text-gray-500">Quote: {booking.quoteId}</div>
+                          <div className="text-xs text-gray-500">
+                            Created: {format(booking.createdAt, 'MMM dd')}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{booking.customer.name}</div>
-                          <div className="text-sm text-gray-500">{booking.customer.phone}</div>
-                          <div className="text-xs text-gray-500">{booking.customer.email}</div>
+                          <div className="font-medium">{booking.customer}</div>
+                          <div className="text-sm text-gray-500">{booking.customerPhone}</div>
+                          <div className="text-xs text-gray-500">{booking.customerEmail}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{booking.equipment.name}</div>
-                          <div className="text-sm text-gray-500">ID: {booking.equipment.id}</div>
-                          {booking.requiresDelivery && (
+                          <div className="font-medium">{booking.equipmentName}</div>
+                          <div className="text-sm text-gray-500">ID: {booking.assignedItemId}</div>
+                          <div className="text-xs text-gray-500">{category?.name}</div>
+                          {booking.deliveryRequired && (
                             <Badge variant="outline" className="text-xs mt-1">Delivery</Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{booking.dates.start}</div>
-                          <div>to {booking.dates.end}</div>
-                          <div className="text-xs text-gray-500">({booking.dates.duration} days)</div>
+                          <div>{format(booking.startDate, 'MMM dd, yyyy')}</div>
+                          <div>to {format(booking.endDate, 'MMM dd, yyyy')}</div>
+                          <div className="text-xs text-gray-500">
+                            ({Math.ceil((booking.endDate.getTime() - booking.startDate.getTime()) / (1000 * 60 * 60 * 24))} days)
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -342,24 +306,21 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setSelectedBooking(booking)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {booking.status === 'pending' && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                              Approve
-                            </Button>
-                          )}
-                          {booking.status === 'paid' && (
-                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                              Dispatch
-                            </Button>
-                          )}
-                          {booking.status === 'active' && (
-                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                              Complete
-                            </Button>
-                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setEditingBooking(booking)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {getActionButton(booking)}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -378,6 +339,24 @@ const BookingManager = ({ branch }: BookingManagerProps) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Booking Detail Modal */}
+      {selectedBooking && (
+        <BookingDetailModal
+          booking={selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+
+      {/* Edit Booking Modal */}
+      {editingBooking && (
+        <EditBookingModal
+          booking={editingBooking}
+          onClose={() => setEditingBooking(null)}
+          onSave={handleBookingUpdate}
+        />
+      )}
     </div>
   );
 };
