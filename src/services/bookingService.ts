@@ -1,216 +1,11 @@
+
 import { 
-  InventoryItem, 
   BookingBlock, 
   CreateBookingRequest, 
-  AvailabilityCheck, 
-  AvailabilityResult,
-  MaintenanceBlock,
-  PRICING_CONFIG,
-  BRANCHES,
-  EquipmentCategory,
-  EquipmentCategoryId
+  PRICING_CONFIG
 } from "@/config/equipmentCategories";
-import { isWithinInterval, differenceInDays } from "date-fns";
-
-// Mock data stores - in real app these would be API calls
-let inventoryStore: InventoryItem[] = [];
-let bookingStore: BookingBlock[] = [];
-let maintenanceStore: MaintenanceBlock[] = [];
-let categoriesStore: EquipmentCategory[] = [];
-
-// Initialize with sample data
-export const initializeMockData = () => {
-  // Initialize categories with default pricing
-  categoriesStore = [
-    {
-      id: 'electric-hospital-beds',
-      name: 'Electric Hospital Beds',
-      color: 'bg-blue-500',
-      pricing: { weeklyRate: 315, monthlyRate: 1200 },
-      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
-      inventory: { hilton: 2, johannesburg: 1 }
-    },
-    {
-      id: 'wheelchairs',
-      name: 'Wheelchairs',
-      color: 'bg-purple-500',
-      pricing: { weeklyRate: 175, monthlyRate: 650 },
-      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
-      inventory: { hilton: 1, johannesburg: 1 }
-    },
-    {
-      id: 'mobility-scooters',
-      name: 'Mobility Scooters',
-      color: 'bg-yellow-500',
-      pricing: { weeklyRate: 245, monthlyRate: 900 },
-      delivery: { baseFee: 50, crossBranchSurcharge: 150 },
-      inventory: { hilton: 1, johannesburg: 1 }
-    }
-  ];
-
-  inventoryStore = [
-    // Electric Hospital Beds
-    { id: "EHB001", name: "ElectricHospitalBeds Hilton 1", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
-    { id: "EHB002", name: "ElectricHospitalBeds Hilton 2", category: "electric-hospital-beds", status: "available", branch: "hilton", serialNumber: "EHB-2024-002", lastChecked: "2024-01-10", condition: "good" },
-    { id: "EHB003", name: "ElectricHospitalBeds Joburg 1", category: "electric-hospital-beds", status: "available", branch: "johannesburg", serialNumber: "EHB-2024-003", lastChecked: "2024-01-12", condition: "excellent" },
-    
-    // Wheelchairs
-    { id: "WC001", name: "Wheelchairs Hilton 1", category: "wheelchairs", status: "available", branch: "hilton", serialNumber: "WC-2024-001", lastChecked: "2024-01-15", condition: "excellent" },
-    { id: "WC002", name: "Wheelchairs Joburg 1", category: "wheelchairs", status: "available", branch: "johannesburg", serialNumber: "WC-2024-002", lastChecked: "2024-01-10", condition: "good" },
-    
-    // Mobility Scooters
-    { id: "MS001", name: "MobilityScooters Hilton 1", category: "mobility-scooters", status: "available", branch: "hilton", serialNumber: "MS-2024-001", lastChecked: "2024-01-13", condition: "excellent" },
-    { id: "MS002", name: "MobilityScooters Joburg 1", category: "mobility-scooters", status: "available", branch: "johannesburg", serialNumber: "MS-2024-002", lastChecked: "2024-01-11", condition: "good" }
-  ];
-
-  bookingStore = [];
-  maintenanceStore = [];
-};
-
-// Equipment Categories Management
-export const getEquipmentCategories = (): EquipmentCategory[] => categoriesStore;
-
-export const updateCategoryPricing = (categoryId: EquipmentCategoryId, updates: { pricing: any; delivery: any }) => {
-  const index = categoriesStore.findIndex(cat => cat.id === categoryId);
-  if (index !== -1) {
-    categoriesStore[index] = {
-      ...categoriesStore[index],
-      pricing: updates.pricing,
-      delivery: updates.delivery
-    };
-  }
-};
-
-// Check-in/Check-out functionality
-export const checkInItem = (itemId: string) => {
-  const index = inventoryStore.findIndex(item => item.id === itemId);
-  if (index !== -1) {
-    inventoryStore[index].status = 'available';
-    inventoryStore[index].currentBooking = undefined;
-    inventoryStore[index].lastChecked = new Date().toISOString().split('T')[0];
-  }
-};
-
-export const checkOutItem = (itemId: string) => {
-  const index = inventoryStore.findIndex(item => item.id === itemId);
-  if (index !== -1) {
-    inventoryStore[index].status = 'booked';
-    inventoryStore[index].lastChecked = new Date().toISOString().split('T')[0];
-  }
-};
-
-// Availability checking logic
-export const checkAvailability = (request: AvailabilityCheck): AvailabilityResult => {
-  const { category, branch: requestedBranch, startDate, endDate, requestedQuantity } = request;
-  
-  // Get all items in the category for the requested branch
-  const branchItems = inventoryStore.filter(item => 
-    item.category === category && 
-    item.branch === requestedBranch && 
-    item.status === 'available'
-  );
-
-  // Check for conflicts with existing bookings and maintenance
-  const availableItems = branchItems.filter(item => {
-    const bookingConflicts = bookingStore.filter(booking => 
-      booking.assignedItemId === item.id &&
-      (booking.status === 'confirmed' || booking.status === 'active') &&
-      (isWithinInterval(startDate, { start: booking.startDate, end: booking.endDate }) ||
-       isWithinInterval(endDate, { start: booking.startDate, end: booking.endDate }) ||
-       isWithinInterval(booking.startDate, { start: startDate, end: endDate }))
-    );
-
-    const maintenanceConflicts = maintenanceStore.filter(maintenance =>
-      maintenance.itemId === item.id &&
-      (isWithinInterval(startDate, { start: maintenance.startDate, end: maintenance.endDate }) ||
-       isWithinInterval(endDate, { start: maintenance.startDate, end: maintenance.endDate }) ||
-       isWithinInterval(maintenance.startDate, { start: startDate, end: endDate }))
-    );
-
-    return bookingConflicts.length === 0 && maintenanceConflicts.length === 0;
-  });
-
-  if (availableItems.length >= requestedQuantity) {
-    return {
-      available: true,
-      availableItems: availableItems.slice(0, requestedQuantity),
-      message: `${availableItems.length} items available at ${BRANCHES.find(b => b.id === requestedBranch)?.name}`
-    };
-  }
-
-  // Check alternative branch
-  const alternateBranch = requestedBranch === 'hilton' ? 'johannesburg' : 'hilton';
-  const altBranchItems = inventoryStore.filter(item => 
-    item.category === category && 
-    item.branch === alternateBranch && 
-    item.status === 'available'
-  );
-
-  const altAvailableItems = altBranchItems.filter(item => {
-    const bookingConflicts = bookingStore.filter(booking => 
-      booking.assignedItemId === item.id &&
-      (booking.status === 'confirmed' || booking.status === 'active') &&
-      (isWithinInterval(startDate, { start: booking.startDate, end: booking.endDate }) ||
-       isWithinInterval(endDate, { start: booking.startDate, end: booking.endDate }) ||
-       isWithinInterval(booking.startDate, { start: startDate, end: endDate }))
-    );
-
-    const maintenanceConflicts = maintenanceStore.filter(maintenance =>
-      maintenance.itemId === item.id &&
-      (isWithinInterval(startDate, { start: maintenance.startDate, end: maintenance.endDate }) ||
-       isWithinInterval(endDate, { start: maintenance.startDate, end: maintenance.endDate }) ||
-       isWithinInterval(maintenance.startDate, { start: startDate, end: endDate }))
-    );
-
-    return bookingConflicts.length === 0 && maintenanceConflicts.length === 0;
-  });
-
-  if (altAvailableItems.length >= requestedQuantity) {
-    return {
-      available: true,
-      availableItems: [],
-      alternativeBranch: {
-        branch: alternateBranch,
-        availableItems: altAvailableItems.slice(0, requestedQuantity),
-        deliveryFee: PRICING_CONFIG.deliveryFees.crossBranch
-      },
-      message: `Available from ${BRANCHES.find(b => b.id === alternateBranch)?.name} - delivery fee will apply`
-    };
-  }
-
-  return {
-    available: false,
-    availableItems: [],
-    message: "Currently Unavailable at both branches"
-  };
-};
-
-// Calculate booking cost
-export const calculateBookingCost = (
-  category: string,
-  startDate: Date,
-  endDate: Date,
-  crossBranchDelivery: boolean = false
-) => {
-  const days = differenceInDays(endDate, startDate) + 1;
-  const dailyRate = PRICING_CONFIG.dailyRates[category as keyof typeof PRICING_CONFIG.dailyRates] || 30;
-  const baseRate = dailyRate * days;
-  
-  const deliveryFee = crossBranchDelivery ? 
-    PRICING_CONFIG.deliveryFees.crossBranch : 
-    PRICING_CONFIG.deliveryFees.standard;
-  
-  const total = baseRate + deliveryFee;
-  const deposit = Math.round(total * PRICING_CONFIG.depositPercentage);
-  
-  return {
-    baseRate,
-    deliveryFee,
-    deposit,
-    total,
-    days
-  };
-};
+import { getBookingStore, setBookingStore, getInventoryStore, setInventoryStore } from "./mockDataService";
+import { checkAvailability, calculateBookingCost } from "./availabilityService";
 
 // Create booking
 export const createBooking = async (request: CreateBookingRequest): Promise<BookingBlock> => {
@@ -228,7 +23,7 @@ export const createBooking = async (request: CreateBookingRequest): Promise<Book
   }
 
   // Determine which item to assign
-  let assignedItem: InventoryItem;
+  let assignedItem;
   let crossBranchBooking = false;
   let deliveryFee = PRICING_CONFIG.deliveryFees.standard;
 
@@ -274,166 +69,69 @@ export const createBooking = async (request: CreateBookingRequest): Promise<Book
     notes: request.notes
   };
 
-  bookingStore.push(booking);
+  const bookings = getBookingStore();
+  setBookingStore([...bookings, booking]);
 
   // Update item status
-  const itemIndex = inventoryStore.findIndex(item => item.id === assignedItem.id);
+  const inventory = getInventoryStore();
+  const itemIndex = inventory.findIndex(item => item.id === assignedItem.id);
   if (itemIndex !== -1) {
-    inventoryStore[itemIndex].status = 'booked';
-    inventoryStore[itemIndex].currentBooking = {
+    const updatedInventory = [...inventory];
+    updatedInventory[itemIndex].status = 'booked';
+    updatedInventory[itemIndex].currentBooking = {
       customer: booking.customer,
       endDate: booking.endDate.toISOString().split('T')[0],
       bookingId: booking.id
     };
+    setInventoryStore(updatedInventory);
   }
 
   return booking;
 };
 
 // Booking management functions
-export const getBookings = () => bookingStore;
+export const getBookings = () => getBookingStore();
 
 export const getBookingById = (id: string) => 
-  bookingStore.find(booking => booking.id === id);
+  getBookingStore().find(booking => booking.id === id);
 
 export const updateBookingStatus = (id: string, status: BookingBlock['status']) => {
-  const index = bookingStore.findIndex(booking => booking.id === id);
+  const bookings = getBookingStore();
+  const index = bookings.findIndex(booking => booking.id === id);
   if (index !== -1) {
-    bookingStore[index].status = status;
+    const updatedBookings = [...bookings];
+    updatedBookings[index].status = status;
+    setBookingStore(updatedBookings);
     
     // Update item status when booking is returned/cancelled
     if (status === 'returned' || status === 'cancelled') {
-      const itemIndex = inventoryStore.findIndex(item => 
-        item.id === bookingStore[index].assignedItemId
+      const inventory = getInventoryStore();
+      const itemIndex = inventory.findIndex(item => 
+        item.id === updatedBookings[index].assignedItemId
       );
       if (itemIndex !== -1) {
-        inventoryStore[itemIndex].status = 'available';
-        inventoryStore[itemIndex].currentBooking = undefined;
+        const updatedInventory = [...inventory];
+        updatedInventory[itemIndex].status = 'available';
+        updatedInventory[itemIndex].currentBooking = undefined;
+        setInventoryStore(updatedInventory);
       }
     }
   }
 };
 
-// Inventory management functions
-export const getInventory = () => inventoryStore;
-
-export const getInventoryByBranch = (branch: string) =>
-  inventoryStore.filter(item => item.branch === branch);
-
-export const getInventoryByCategory = (category: string) =>
-  inventoryStore.filter(item => item.category === category);
-
-export const addInventoryItem = (item: Omit<InventoryItem, 'id'>) => {
-  const newItem: InventoryItem = {
-    ...item,
-    id: `${item.category.toUpperCase().slice(0, 3)}${Date.now()}`
-  };
-  inventoryStore.push(newItem);
-  return newItem;
-};
-
-export const updateInventoryItem = (id: string, updates: Partial<InventoryItem>) => {
-  const index = inventoryStore.findIndex(item => item.id === id);
-  if (index !== -1) {
-    inventoryStore[index] = { ...inventoryStore[index], ...updates };
-    return inventoryStore[index];
-  }
-  return null;
-};
-
-export const deleteInventoryItem = (id: string) => {
-  // Check if item is currently booked
-  const hasActiveBooking = bookingStore.some(booking =>
-    booking.assignedItemId === id && 
-    (booking.status === 'confirmed' || booking.status === 'active')
-  );
-
-  if (hasActiveBooking) {
-    throw new Error("Cannot delete item with active bookings");
-  }
-
-  const index = inventoryStore.findIndex(item => item.id === id);
-  if (index !== -1) {
-    inventoryStore.splice(index, 1);
-    return true;
-  }
-  return false;
-};
-
-// Maintenance block management
-export const createMaintenanceBlock = (block: Omit<MaintenanceBlock, 'id' | 'createdAt'>) => {
-  const maintenanceBlock: MaintenanceBlock = {
-    ...block,
-    id: `M${Date.now()}`,
-    createdAt: new Date()
-  };
-  maintenanceStore.push(maintenanceBlock);
-
-  // Update item status
-  const itemIndex = inventoryStore.findIndex(item => item.id === block.itemId);
-  if (itemIndex !== -1) {
-    inventoryStore[itemIndex].status = 'maintenance';
-    inventoryStore[itemIndex].notes = block.reason;
-  }
-
-  return maintenanceBlock;
-};
-
-export const getMaintenanceBlocks = () => maintenanceStore;
-
-export const removeMaintenanceBlock = (id: string) => {
-  const index = maintenanceStore.findIndex(block => block.id === id);
-  if (index !== -1) {
-    const block = maintenanceStore[index];
-    maintenanceStore.splice(index, 1);
-
-    // Update item status back to available
-    const itemIndex = inventoryStore.findIndex(item => item.id === block.itemId);
-    if (itemIndex !== -1) {
-      inventoryStore[itemIndex].status = 'available';
-      inventoryStore[itemIndex].notes = undefined;
-    }
-    return true;
-  }
-  return false;
-};
-
-// iCal generation
-export const generateICalForItem = (itemId: string) => {
-  const itemBookings = bookingStore.filter(booking => booking.assignedItemId === itemId);
-  const item = inventoryStore.find(item => item.id === itemId);
-  
-  if (!item) return null;
-
-  let icalContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Rent2Recover//Equipment Calendar//EN',
-    `X-WR-CALNAME:${item.name} (${item.id}) - ${BRANCHES.find(b => b.id === item.branch)?.name}`,
-    'X-WR-CALDESC:Booking calendar for medical equipment rental'
-  ];
-
-  itemBookings.forEach(booking => {
-    const startDate = booking.startDate.toISOString().split('T')[0].replace(/-/g, '');
-    const endDate = new Date(booking.endDate);
-    endDate.setDate(endDate.getDate() + 1);
-    const endDateStr = endDate.toISOString().split('T')[0].replace(/-/g, '');
-    
-    icalContent.push(
-      'BEGIN:VEVENT',
-      `UID:${booking.id}@rent2recover.com`,
-      `DTSTART:${startDate}`,
-      `DTEND:${endDateStr}`,
-      `SUMMARY:Rental - ${booking.customer}`,
-      `DESCRIPTION:Equipment: ${booking.equipmentName}\\nCustomer: ${booking.customer}\\nBranch: ${BRANCHES.find(b => b.id === booking.branch)?.name}\\nStatus: ${booking.status}`,
-      `LOCATION:${BRANCHES.find(b => b.id === booking.branch)?.location}`,
-      'END:VEVENT'
-    );
-  });
-
-  icalContent.push('END:VCALENDAR');
-  return icalContent.join('\r\n');
-};
-
-// Initialize mock data
-initializeMockData();
+// Re-export services for compatibility
+export { getEquipmentCategories, updateCategoryPricing } from "./categoryService";
+export { 
+  getInventory, 
+  getInventoryByBranch, 
+  getInventoryByCategory,
+  addInventoryItem,
+  updateInventoryItem,
+  deleteInventoryItem,
+  checkInItem,
+  checkOutItem
+} from "./inventoryService";
+export { createMaintenanceBlock, getMaintenanceBlocks, removeMaintenanceBlock } from "./maintenanceService";
+export { checkAvailability, calculateBookingCost } from "./availabilityService";
+export { generateICalForItem } from "./calendarService";
+export { initializeMockData } from "./mockDataService";
