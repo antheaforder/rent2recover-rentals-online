@@ -37,6 +37,7 @@ export interface EquipmentCategory {
   color: string;
   imageUrl?: string;
   pricing: {
+    dailyRate: number;
     weeklyRate: number;
     monthlyRate: number;
   };
