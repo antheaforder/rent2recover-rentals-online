@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { 
   getInventoryByCategory, 
   addInventoryItem,
+  updateInventoryItem,
   deleteInventoryItem,
   createMaintenanceBlock,
   generateICalForItem,
@@ -13,18 +13,27 @@ import {
   checkOutItem
 } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
-import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId } from "@/config/equipmentCategories";
+import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type InventoryItem } from "@/config/equipmentCategories";
 import InventoryItemsList from "@/components/admin/inventory/InventoryItemsList";
 import AddInventoryItemModal from "@/components/admin/inventory/AddInventoryItemModal";
+import EditInventoryItemModal from "@/components/admin/inventory/EditInventoryItemModal";
 
 interface CategoryDetailsViewProps {
   category: EquipmentCategoryId;
   branch: string;
   onBack: () => void;
+  onCreateBooking?: (item: InventoryItem) => void; // Add prop for creating booking
 }
 
-const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewProps) => {
+const CategoryDetailsView = ({ 
+  category, 
+  branch, 
+  onBack,
+  onCreateBooking
+}: CategoryDetailsViewProps) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [inventory, setInventory] = useState(() => getInventoryByCategory(category));
   const { toast } = useToast();
 
@@ -33,6 +42,10 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
 
   const filteredInventory = inventory.filter(item => item.branch === branch);
 
+  const refreshInventory = () => {
+    setInventory(getInventoryByCategory(category));
+  };
+
   const handleAddItem = async (formData: FormData) => {
     try {
       const newItem = addInventoryItem({
@@ -40,13 +53,13 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
         category: category,
         branch: branch as any,
         serialNumber: formData.get('serialNumber') as string,
-        condition: formData.get('condition') as any,
+        condition: 'excellent', // All items are excellent by default
         status: 'available',
         lastChecked: new Date().toISOString().split('T')[0],
         notes: formData.get('notes') as string || undefined
       });
       
-      setInventory(getInventoryByCategory(category));
+      refreshInventory();
       setIsAddModalOpen(false);
       toast({
         title: "Item Added",
@@ -56,6 +69,28 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
       toast({
         title: "Error",
         description: "Failed to add item to inventory",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditItem = (item: InventoryItem) => {
+    setEditingItem(item);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveItemChanges = async (itemId: string, updates: Partial<InventoryItem>) => {
+    try {
+      updateInventoryItem(itemId, updates);
+      refreshInventory();
+      toast({
+        title: "Item Updated",
+        description: "Item details have been saved"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update item",
         variant: "destructive"
       });
     }
@@ -74,7 +109,7 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
   const handleDeleteItem = async (itemId: string) => {
     try {
       deleteInventoryItem(itemId);
-      setInventory(getInventoryByCategory(category));
+      refreshInventory();
       toast({
         title: "Item Deleted",
         description: "Item has been removed from inventory"
@@ -91,7 +126,7 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
   const handleCheckIn = async (itemId: string) => {
     try {
       checkInItem(itemId);
-      setInventory(getInventoryByCategory(category));
+      refreshInventory();
       toast({
         title: "Item Checked In",
         description: "Item status updated to available"
@@ -105,20 +140,26 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
     }
   };
 
-  const handleCheckOut = async (itemId: string) => {
-    try {
-      checkOutItem(itemId);
-      setInventory(getInventoryByCategory(category));
-      toast({
-        title: "Item Checked Out",
-        description: "Item status updated to booked"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to check out item",
-        variant: "destructive"
-      });
+  const handleCheckOut = async (item: InventoryItem) => {
+    // If there's a createBooking handler, use it to open booking modal
+    if (onCreateBooking) {
+      onCreateBooking(item);
+    } else {
+      // Otherwise, just mark as checked out
+      try {
+        checkOutItem(item.id);
+        refreshInventory();
+        toast({
+          title: "Item Checked Out",
+          description: "Item status updated to booked"
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to check out item",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -132,7 +173,7 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
         createdBy: 'admin'
       });
       
-      setInventory(getInventoryByCategory(category));
+      refreshInventory();
       toast({
         title: "Maintenance Block Created",
         description: "Item has been marked for maintenance"
@@ -199,6 +240,7 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
         items={filteredInventory}
         onCheckIn={handleCheckIn}
         onCheckOut={handleCheckOut}
+        onEdit={handleEditItem}
         onMaintenance={handleCreateMaintenanceBlock}
         onDelete={handleDeleteItem}
         onDownloadICal={handleDownloadICal}
@@ -212,6 +254,14 @@ const CategoryDetailsView = ({ category, branch, onBack }: CategoryDetailsViewPr
         branch={branch}
         onAddItem={handleAddItem}
         suggestedName={generateItemName(category, branch)}
+      />
+
+      <EditInventoryItemModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        item={editingItem}
+        onSave={handleSaveItemChanges}
+        onDelete={handleDeleteItem}
       />
     </div>
   );

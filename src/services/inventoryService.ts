@@ -11,14 +11,56 @@ export const getInventoryByBranch = (branch: string) =>
 export const getInventoryByCategory = (category: string) =>
   getInventoryStore().filter(item => item.category === category);
 
+// Generate category abbreviation for serial numbers
+const getCategoryAbbreviation = (category: string): string => {
+  const abbreviations: Record<string, string> = {
+    'electric-hospital-beds': 'EHB',
+    'electric-wheelchairs': 'EWC',
+    'manual-wheelchairs': 'MWC',
+    'mobility-scooters': 'MS',
+    'walking-frames': 'WF',
+    'crutches': 'CR',
+    'commodes': 'CM',
+    'shower-chairs': 'SC',
+    'toilet-seats': 'TS',
+    'grab-rails': 'GR'
+  };
+  return abbreviations[category] || category.toUpperCase().slice(0, 3);
+};
+
+// Generate branch code for serial numbers
+const getBranchCode = (branch: string): string => {
+  const codes: Record<string, string> = {
+    'hilton': 'HLT',
+    'johannesburg': 'JHB'
+  };
+  return codes[branch] || branch.toUpperCase().slice(0, 3);
+};
+
+// Generate auto serial number
+export const generateSerialNumber = (category: string, branch: string): string => {
+  const categoryAbbr = getCategoryAbbreviation(category);
+  const branchCode = getBranchCode(branch);
+  
+  // Get existing items for this category and branch to determine next number
+  const existingItems = getInventoryStore().filter(item => 
+    item.category === category && item.branch === branch
+  );
+  
+  const nextNumber = existingItems.length + 1;
+  return `${categoryAbbr}-${branchCode}-${String(nextNumber).padStart(3, '0')}`;
+};
+
 export const addInventoryItem = (item: Omit<InventoryItem, 'id'>) => {
   const inventory = getInventoryStore();
   
-  // Generate unique ID using category prefix and timestamp
-  const categoryPrefix = item.category.toUpperCase().slice(0, 3);
+  // Generate unique ID and serial number if not provided
   const newItem: InventoryItem = {
     ...item,
-    id: item.serialNumber || `${categoryPrefix}${Date.now()}`
+    id: item.serialNumber || `${Date.now()}`,
+    serialNumber: item.serialNumber || generateSerialNumber(item.category, item.branch),
+    condition: 'excellent', // All items are excellent by default
+    status: item.status || 'available'
   };
   
   setInventoryStore([...inventory, newItem]);
@@ -98,14 +140,4 @@ export const generateNextItemName = (category: string, branch: string) => {
   const branchName = branch === 'hilton' ? 'Hilton' : 'Joburg';
   
   return `${categoryName} ${branchName} ${nextNumber}`;
-};
-
-// Generate serial number
-export const generateSerialNumber = (category: string) => {
-  const prefix = category.toUpperCase().slice(0, 3);
-  const year = new Date().getFullYear();
-  const inventory = getInventoryByCategory(category);
-  const nextNumber = inventory.length + 1;
-  
-  return `${prefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
 };

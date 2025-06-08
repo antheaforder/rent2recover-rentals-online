@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type BranchId, type InventoryItem } from "@/config/equipmentCategories";
-import { getInventoryByCategory } from "@/services/inventoryService";
+import { generateSerialNumber } from "@/services/inventoryService";
 
 interface EquipmentItemModalProps {
   isOpen: boolean;
@@ -34,7 +33,6 @@ const EquipmentItemModal = ({
     serialNumber: '',
     id: '',
     branch: branch || 'hilton',
-    condition: 'excellent',
     status: 'available',
     lastChecked: new Date().toISOString().split('T')[0],
     notes: ''
@@ -46,27 +44,22 @@ const EquipmentItemModal = ({
   const generateAutoFields = () => {
     if (mode === 'edit' || !categoryInfo) return;
 
-    const inventory = getInventoryByCategory(category);
-    const branchItems = inventory.filter(item => item.branch === formData.branch);
-    const nextNumber = branchItems.length + 1;
-
     // Generate name: CategoryName Branch Number
     const categoryPrefix = categoryInfo.name.replace(/\s+/g, '');
     const branchName = BRANCHES.find(b => b.id === formData.branch)?.name.split(' ')[0] || '';
-    const generatedName = `${categoryPrefix} ${branchName} ${nextNumber}`;
+    const timestamp = Date.now().toString().slice(-3);
+    const generatedName = `${categoryPrefix} ${branchName} ${timestamp}`;
 
-    // Generate serial number: PREFIX-YYYY-###
-    const prefix = category.toUpperCase().slice(0, 3);
-    const year = new Date().getFullYear();
-    const serialNumber = `${prefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
+    // Generate serial number using the service
+    const generatedSerial = generateSerialNumber(category, formData.branch);
 
-    // Generate ID: PREFIX###
-    const generatedId = `${prefix}${String(Date.now()).slice(-3)}`;
+    // Generate ID
+    const generatedId = `${category.slice(0, 3)}${timestamp}`;
 
     setFormData(prev => ({
       ...prev,
       name: generatedName,
-      serialNumber,
+      serialNumber: generatedSerial,
       id: generatedId
     }));
   };
@@ -78,7 +71,6 @@ const EquipmentItemModal = ({
         serialNumber: editItem.serialNumber,
         id: editItem.id,
         branch: editItem.branch,
-        condition: editItem.condition,
         status: editItem.status,
         lastChecked: editItem.lastChecked,
         notes: editItem.notes || ''
@@ -90,7 +82,6 @@ const EquipmentItemModal = ({
         serialNumber: '',
         id: '',
         branch: branch || 'hilton',
-        condition: 'excellent',
         status: 'available',
         lastChecked: new Date().toISOString().split('T')[0],
         notes: ''
@@ -109,6 +100,7 @@ const EquipmentItemModal = ({
     onSave({
       ...formData,
       category,
+      condition: 'excellent', // All items are excellent by default
       purchaseDate: mode === 'add' ? new Date().toISOString().split('T')[0] : editItem?.purchaseDate
     });
   };
@@ -149,34 +141,19 @@ const EquipmentItemModal = ({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="serialNumber">Serial Number</Label>
-                <Input
-                  id="serialNumber"
-                  value={formData.serialNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
-                  required
-                />
-                {mode === 'add' && (
-                  <p className="text-xs text-gray-500">Format: PREFIX-YYYY-###</p>
-                )}
-              </div>
-              
-              <div>
-                <Label htmlFor="id">Internal ID</Label>
-                <Input
-                  id="id"
-                  value={formData.id}
-                  disabled={mode === 'add'}
-                  onChange={(e) => setFormData(prev => ({ ...prev, id: e.target.value }))}
-                  className={mode === 'add' ? 'bg-gray-50' : ''}
-                  required
-                />
-                {mode === 'add' && (
-                  <p className="text-xs text-gray-500">Auto-generated unique ID</p>
-                )}
-              </div>
+            <div>
+              <Label htmlFor="serialNumber">Serial Number</Label>
+              <Input
+                id="serialNumber"
+                value={formData.serialNumber}
+                disabled={mode === 'add'}
+                onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
+                className={mode === 'add' ? 'bg-gray-50' : ''}
+                required
+              />
+              {mode === 'add' && (
+                <p className="text-xs text-gray-500">Auto-generated: [Category]-[Branch]-[Number]</p>
+              )}
             </div>
           </div>
 
@@ -199,23 +176,6 @@ const EquipmentItemModal = ({
             </div>
 
             <div>
-              <Label htmlFor="condition">Condition</Label>
-              <Select value={formData.condition} onValueChange={(value) => setFormData(prev => ({ ...prev, condition: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="excellent">Excellent</SelectItem>
-                  <SelectItem value="good">Good</SelectItem>
-                  <SelectItem value="fair">Fair</SelectItem>
-                  <SelectItem value="needs-repair">Needs Repair</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
               <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
                 <SelectTrigger>
@@ -228,20 +188,20 @@ const EquipmentItemModal = ({
                 </SelectContent>
               </Select>
             </div>
-
-            <div>
-              <Label htmlFor="lastChecked">Last Checked</Label>
-              <Input
-                id="lastChecked"
-                type="date"
-                value={formData.lastChecked}
-                onChange={(e) => setFormData(prev => ({ ...prev, lastChecked: e.target.value }))}
-              />
-            </div>
           </div>
 
           <div>
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="lastChecked">Last Checked</Label>
+            <Input
+              id="lastChecked"
+              type="date"
+              value={formData.lastChecked}
+              onChange={(e) => setFormData(prev => ({ ...prev, lastChecked: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Admin Notes (Optional)</Label>
             <Textarea
               id="notes"
               value={formData.notes}

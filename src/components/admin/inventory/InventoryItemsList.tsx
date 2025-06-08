@@ -18,7 +18,8 @@ import { type InventoryItem } from "@/config/equipmentCategories";
 interface InventoryItemsListProps {
   items: InventoryItem[];
   onCheckIn: (itemId: string) => void;
-  onCheckOut: (itemId: string) => void;
+  onCheckOut: (item: InventoryItem) => void; // Changed to pass full item
+  onEdit: (item: InventoryItem) => void; // Add edit handler
   onMaintenance: (itemId: string, reason: string) => void;
   onDelete: (itemId: string) => void;
   onDownloadICal: (itemId: string) => void;
@@ -29,6 +30,7 @@ const InventoryItemsList = ({
   items, 
   onCheckIn,
   onCheckOut,
+  onEdit,
   onMaintenance, 
   onDelete,
   onDownloadICal,
@@ -41,16 +43,6 @@ const InventoryItemsList = ({
       case 'maintenance': return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'transfer': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case 'excellent': return 'bg-green-100 text-green-800';
-      case 'good': return 'bg-blue-100 text-blue-800';
-      case 'fair': return 'bg-yellow-100 text-yellow-800';
-      case 'needs-repair': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -99,8 +91,8 @@ const InventoryItemsList = ({
                     <Badge className={getStatusColor(item.status)}>
                       {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                     </Badge>
-                    <Badge className={getConditionColor(item.condition)}>
-                      {item.condition.charAt(0).toUpperCase() + item.condition.slice(1).replace('-', ' ')}
+                    <Badge className="bg-blue-100 text-blue-800">
+                      Excellent Condition
                     </Badge>
                   </div>
                 </div>
@@ -131,8 +123,9 @@ const InventoryItemsList = ({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onCheckOut(item.id)}
-                      title="Check Out"
+                      onClick={() => onCheckOut(item)} // Pass full item
+                      title="Create Booking"
+                      className="text-blue-600 hover:bg-blue-50"
                     >
                       <LogOut className="h-4 w-4 mr-1" />
                       Check Out
@@ -162,7 +155,12 @@ const InventoryItemsList = ({
                 )}
 
                 {/* Edit and Delete */}
-                <Button size="sm" variant="outline" title="Edit Item">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  title="Edit Item"
+                  onClick={() => onEdit(item)}
+                >
                   <Edit className="h-4 w-4" />
                 </Button>
                 
