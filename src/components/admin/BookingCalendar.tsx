@@ -8,11 +8,10 @@ import DayBookingsModal from "./calendar/DayBookingsModal";
 import InventoryItemModal from "./calendar/InventoryItemModal";
 import { 
   EQUIPMENT_CATEGORIES, 
-  INVENTORY_ITEMS, 
-  MOCK_BOOKINGS,
   type InventoryItem,
   type BookingBlock
 } from "@/config/equipmentCategories";
+import { MOCK_INVENTORY_ITEMS, MOCK_BOOKINGS } from "@/config/mockData";
 
 interface BookingCalendarProps {
   branch: string;
@@ -31,7 +30,7 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
 
   // Filter inventory items based on current filters
-  const filteredInventoryItems = INVENTORY_ITEMS.filter(item => {
+  const filteredInventoryItems = MOCK_INVENTORY_ITEMS.filter(item => {
     const branchMatch = branchFilter === 'all' || item.branch === branchFilter || showCrossBranch;
     const categoryMatch = equipmentFilter === 'all' || item.category === equipmentFilter;
     return branchMatch && categoryMatch;
@@ -64,7 +63,7 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     if (itemId === 'all') {
       toast.success("Generating iCal feed for all equipment...");
     } else {
-      const item = INVENTORY_ITEMS.find(i => i.id === itemId);
+      const item = MOCK_INVENTORY_ITEMS.find(i => i.id === itemId);
       toast.success(`Generating iCal feed for ${item?.name || 'equipment'}...`);
     }
   };
@@ -73,6 +72,16 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     const link = `${window.location.origin}/api/ical/${itemId}`;
     navigator.clipboard.writeText(link);
     toast.success("iCal link copied to clipboard!");
+  };
+
+  const handleBookingView = (booking: BookingBlock) => {
+    console.log("View booking:", booking);
+    // TODO: Implement booking view modal
+  };
+
+  const handleBookingEdit = (booking: BookingBlock) => {
+    console.log("Edit booking:", booking);
+    // TODO: Implement booking edit modal
   };
 
   return (
@@ -103,24 +112,25 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
         <MonthView
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
-          equipmentFilter={equipmentFilter}
-          branchFilter={branchFilter}
           filteredBookings={filteredBookings}
           inventoryItems={filteredInventoryItems}
+          onBookingView={handleBookingView}
+          onBookingEdit={handleBookingEdit}
           onDayClick={handleDayClick}
-          onInventoryItemClick={handleInventoryItemClick}
-          onGenerateICalFeed={handleGenerateICalFeed}
         />
       )}
 
       <DayBookingsModal
         isOpen={!!selectedDayBookings}
         onClose={() => setSelectedDayBookings(null)}
-        dayBookings={selectedDayBookings}
+        date={selectedDayBookings?.date || null}
+        bookings={selectedDayBookings?.bookings || []}
         branchFilter={branchFilter}
         setBranchFilter={setBranchFilter}
         equipmentFilter={equipmentFilter}
         setEquipmentFilter={setEquipmentFilter}
+        onBookingView={handleBookingView}
+        onBookingEdit={handleBookingEdit}
       />
 
       <InventoryItemModal
