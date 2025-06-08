@@ -26,6 +26,7 @@ const CategoryManagerModal = ({
 }: CategoryManagerModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
+    dailyRate: 0,
     weeklyRate: 0,
     monthlyRate: 0,
     baseFee: 50,
@@ -43,6 +44,7 @@ const CategoryManagerModal = ({
     if (mode === 'edit' && currentCategory) {
       setFormData({
         name: currentCategory.name,
+        dailyRate: currentCategory.pricing.dailyRate,
         weeklyRate: currentCategory.pricing.weeklyRate,
         monthlyRate: currentCategory.pricing.monthlyRate,
         baseFee: currentCategory.delivery.baseFee,
@@ -53,6 +55,7 @@ const CategoryManagerModal = ({
     } else if (mode === 'add') {
       setFormData({
         name: '',
+        dailyRate: 0,
         weeklyRate: 0,
         monthlyRate: 0,
         baseFee: 50,
@@ -105,6 +108,7 @@ const CategoryManagerModal = ({
         name: formData.name,
         imageUrl: formData.imageUrl,
         pricing: {
+          dailyRate: Number(formData.dailyRate),
           weeklyRate: Number(formData.weeklyRate),
           monthlyRate: Number(formData.monthlyRate)
         },
@@ -202,9 +206,21 @@ const CategoryManagerModal = ({
           </div>
 
           {/* Pricing Fields */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label htmlFor="weeklyRate">Weekly Price (ZAR)</Label>
+              <Label htmlFor="dailyRate">Daily Rate (ZAR)</Label>
+              <Input
+                id="dailyRate"
+                type="number"
+                value={formData.dailyRate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dailyRate: Number(e.target.value) }))}
+                required
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <Label htmlFor="weeklyRate">Weekly Rate (ZAR)</Label>
               <Input
                 id="weeklyRate"
                 type="number"
@@ -216,7 +232,7 @@ const CategoryManagerModal = ({
               />
             </div>
             <div>
-              <Label htmlFor="monthlyRate">Monthly Price (ZAR)</Label>
+              <Label htmlFor="monthlyRate">Monthly Rate (ZAR)</Label>
               <Input
                 id="monthlyRate"
                 type="number"

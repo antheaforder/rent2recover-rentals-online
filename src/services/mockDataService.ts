@@ -15,7 +15,7 @@ export const initializeMockData = () => {
       id: 'electric-hospital-beds',
       name: 'Electric Hospital Beds',
       color: 'bg-blue-500',
-      pricing: { weeklyRate: 315, monthlyRate: 1200 },
+      pricing: { dailyRate: 45, weeklyRate: 315, monthlyRate: 1200 },
       delivery: { baseFee: 50, crossBranchSurcharge: 150 },
       inventory: { hilton: 2, johannesburg: 1 }
     },
@@ -23,7 +23,7 @@ export const initializeMockData = () => {
       id: 'wheelchairs',
       name: 'Wheelchairs',
       color: 'bg-purple-500',
-      pricing: { weeklyRate: 175, monthlyRate: 650 },
+      pricing: { dailyRate: 25, weeklyRate: 175, monthlyRate: 650 },
       delivery: { baseFee: 50, crossBranchSurcharge: 150 },
       inventory: { hilton: 1, johannesburg: 1 }
     },
@@ -31,7 +31,7 @@ export const initializeMockData = () => {
       id: 'mobility-scooters',
       name: 'Mobility Scooters',
       color: 'bg-yellow-500',
-      pricing: { weeklyRate: 245, monthlyRate: 900 },
+      pricing: { dailyRate: 35, weeklyRate: 245, monthlyRate: 900 },
       delivery: { baseFee: 50, crossBranchSurcharge: 150 },
       inventory: { hilton: 1, johannesburg: 1 }
     }
