@@ -12,7 +12,8 @@ const BrowseEquipment = () => {
   const { categoryId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const branch = searchParams.get('branch');
+  const branchParam = searchParams.get('branch');
+  const branch = (branchParam === 'hilton' || branchParam === 'johannesburg') ? branchParam : null;
 
   const [category, setCategory] = useState(null);
   const [availableItems, setAvailableItems] = useState([]);
@@ -121,7 +122,6 @@ const BrowseEquipment = () => {
                 <Badge 
                   variant="secondary" 
                   className={availableItems.length > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-                  size="lg"
                 >
                   {availableItems.length > 0 ? 
                     `${availableItems.length} Available` : 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,8 @@ const BookingFlow = () => {
   const { categoryId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const branch = searchParams.get('branch');
+  const branchParam = searchParams.get('branch');
+  const branch = (branchParam === 'hilton' || branchParam === 'johannesburg') ? branchParam : null;
 
   const [currentStep, setCurrentStep] = useState<BookingStep>('dates');
   const [category, setCategory] = useState(null);
