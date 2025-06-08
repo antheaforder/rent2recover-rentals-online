@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Calendar as CalendarIcon, MapPin } from "lucide-react";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { getEquipmentCategories } from "@/services/categoryService";
-import { calculateBestPricing } from "@/services/categoryService";
 import { checkAvailability } from "@/services/availabilityService";
+import { calculateOptimalPricing, getPricingRecommendation } from "@/services/pricingService";
+import PricingDisplay from "@/components/booking/PricingDisplay";
 
 type BookingStep = 'dates' | 'details' | 'payment' | 'confirmation';
 
@@ -19,7 +20,7 @@ const BookingFlow = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const branchParam = searchParams.get('branch');
-  const branch = (branchParam === 'hilton' || branchParam === 'johannesburg') ? branchParam : null;
+  const branch = (branchParam === 'hilton' || branchParam === 'johannesburg') ? branchParam as 'hilton' | 'johannesburg' : null;
 
   const [currentStep, setCurrentStep] = useState<BookingStep>('dates');
   const [category, setCategory] = useState(null);
@@ -46,14 +47,16 @@ const BookingFlow = () => {
 
   useEffect(() => {
     if (startDate && endDate && category) {
-      const days = differenceInDays(endDate, startDate) + 1;
-      const pricingResult = calculateBestPricing(category.id, days);
+      // Calculate optimal pricing
+      const pricingResult = calculateOptimalPricing(startDate, endDate, category.pricing);
+      const recommendation = getPricingRecommendation(pricingResult.duration);
+      
       setPricing({
         ...pricingResult,
         deliveryFee: category.delivery.baseFee,
         totalWithDelivery: pricingResult.total + category.delivery.baseFee,
         deposit: Math.round((pricingResult.total + category.delivery.baseFee) * 0.3),
-        days
+        recommendation
       });
 
       // Check availability
@@ -89,7 +92,7 @@ const BookingFlow = () => {
 
   const handlePaymentSubmit = () => {
     // This will be implemented with PayFast integration
-    alert('Payment integration will be implemented with PayFast via Supabase Edge Functions');
+    alert('PayFast integration will be implemented next');
     setCurrentStep('confirmation');
   };
 
@@ -179,7 +182,7 @@ const BookingFlow = () => {
                     Select Rental Period
                   </CardTitle>
                   <CardDescription>
-                    Choose your start and end dates. Cost will be automatically calculated.
+                    Choose your start and end dates. We'll automatically calculate the most cost-effective rate.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -192,6 +195,11 @@ const BookingFlow = () => {
                         disabled={(date) => date < new Date()}
                         className="rounded-md border"
                       />
+                      {startDate && !endDate && (
+                        <p className="text-sm text-blue-600 mt-2 text-center">
+                          Now select your end date
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-sm">
@@ -218,65 +226,44 @@ const BookingFlow = () => {
                         </div>
                       )}
                       
-                      {startDate && !endDate && (
-                        <p className="text-sm text-gray-600">Now select your end date on the calendar</p>
+                      {startDate && endDate && pricing && (
+                        <div className="bg-blue-50 p-3 rounded-lg text-sm">
+                          <p className="text-blue-800 font-medium">💡 Smart Pricing Applied</p>
+                          <p className="text-blue-700">{pricing.recommendation}</p>
+                        </div>
                       )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Booking Summary */}
+              {/* Enhanced Booking Summary with New Pricing Logic */}
               {startDate && endDate && pricing && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Booking Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div><strong>Equipment:</strong> {category.name}</div>
-                      <div><strong>Branch:</strong> {branchName}</div>
-                      <div><strong>Rental Period:</strong> {pricing.days} days</div>
-                      <div><strong>Rate:</strong> {pricing.breakdown}</div>
-                    </div>
-                    
-                    <div className="border-t pt-4 space-y-2">
-                      <div className="flex justify-between">
-                        <span>Equipment Rental:</span>
-                        <span>R{pricing.total}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Delivery & Setup:</span>
-                        <span>R{pricing.deliveryFee}</span>
-                      </div>
-                      <div className="flex justify-between font-bold">
-                        <span>Total Cost:</span>
-                        <span>R{pricing.totalWithDelivery}</span>
-                      </div>
-                      <div className="flex justify-between text-blue-600">
-                        <span>Deposit Required (30%):</span>
-                        <span>R{pricing.deposit}</span>
-                      </div>
-                    </div>
+                <>
+                  <PricingDisplay 
+                    pricing={pricing}
+                    deliveryFee={pricing.deliveryFee}
+                    recommendation={pricing.recommendation}
+                  />
 
-                    {availability && (
-                      <div className="border-t pt-4">
+                  {availability && (
+                    <Card>
+                      <CardContent className="pt-6">
                         <div className={`p-3 rounded-lg ${availability.available ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
                           {availability.message}
                         </div>
-                      </div>
-                    )}
-
-                    <Button 
-                      onClick={handleContinueToDetails}
-                      disabled={!availability?.available}
-                      className="w-full"
-                      size="lg"
-                    >
-                      Continue to Details
-                    </Button>
-                  </CardContent>
-                </Card>
+                        <Button 
+                          onClick={handleContinueToDetails}
+                          disabled={!availability?.available}
+                          className="w-full mt-4"
+                          size="lg"
+                        >
+                          Continue to Details
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -373,7 +360,7 @@ const BookingFlow = () => {
                   <h3 className="font-semibold">Order Summary</h3>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span>{category.name} ({pricing?.days} days)</span>
+                      <span>{category.name} ({pricing?.duration} days)</span>
                       <span>R{pricing?.total}</span>
                     </div>
                     <div className="flex justify-between">
