@@ -9,7 +9,164 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admin_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          last_login: string | null
+          password_hash: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          last_login?: string | null
+          password_hash: string
+          role?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          last_login?: string | null
+          password_hash?: string
+          role?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          branch: string
+          created_at: string
+          customer_id: string
+          delivery_address: string
+          delivery_date: string | null
+          delivery_fee: number
+          deposit_amount: number
+          end_date: string
+          equipment_category: string
+          equipment_name: string
+          id: string
+          payment_reference: string | null
+          payment_status: string
+          quote_id: string
+          rental_days: number
+          return_date: string | null
+          special_instructions: string | null
+          start_date: string
+          status: string
+          total_cost: number
+          updated_at: string
+        }
+        Insert: {
+          branch: string
+          created_at?: string
+          customer_id: string
+          delivery_address: string
+          delivery_date?: string | null
+          delivery_fee?: number
+          deposit_amount: number
+          end_date: string
+          equipment_category: string
+          equipment_name: string
+          id?: string
+          payment_reference?: string | null
+          payment_status?: string
+          quote_id: string
+          rental_days: number
+          return_date?: string | null
+          special_instructions?: string | null
+          start_date: string
+          status?: string
+          total_cost: number
+          updated_at?: string
+        }
+        Update: {
+          branch?: string
+          created_at?: string
+          customer_id?: string
+          delivery_address?: string
+          delivery_date?: string | null
+          delivery_fee?: number
+          deposit_amount?: number
+          end_date?: string
+          equipment_category?: string
+          equipment_name?: string
+          id?: string
+          payment_reference?: string | null
+          payment_status?: string
+          quote_id?: string
+          rental_days?: number
+          return_date?: string | null
+          special_instructions?: string | null
+          start_date?: string
+          status?: string
+          total_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_users: {
+        Row: {
+          address_latitude: number | null
+          address_longitude: number | null
+          created_at: string
+          delivery_address: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string
+          total_bookings: number
+          updated_at: string
+        }
+        Insert: {
+          address_latitude?: number | null
+          address_longitude?: number | null
+          created_at?: string
+          delivery_address: string
+          email: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone: string
+          total_bookings?: number
+          updated_at?: string
+        }
+        Update: {
+          address_latitude?: number | null
+          address_longitude?: number | null
+          created_at?: string
+          delivery_address?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string
+          total_bookings?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

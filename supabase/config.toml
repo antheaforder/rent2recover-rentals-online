@@ -1,4 +1,5 @@
 
+
 project_id = "scpelwofjvvodpobiujn"
 
 [functions.google-places-autocomplete]
@@ -12,3 +13,10 @@ verify_jwt = false
 
 [functions.payfast-webhook]
 verify_jwt = false
+
+[functions.admin-auth]
+verify_jwt = false
+
+[functions.customer-management]
+verify_jwt = false
+

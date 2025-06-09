@@ -1,17 +1,32 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  ArrowLeft, 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
   Plus, 
-  MapPin,
+  Settings, 
+  MapPin, 
+  User, 
+  LogOut, 
   Shield
 } from "lucide-react";
-import { BRANCHES, USER_ROLES, type UserRole } from "@/config/equipmentCategories";
-import NotificationsPanel from "@/components/admin/NotificationsPanel";
+import { BRANCHES, type UserRole } from "@/config/equipmentCategories";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface AdminHeaderProps {
   branch: string;
@@ -23,82 +38,87 @@ interface AdminHeaderProps {
   onCreateBookingClick: () => void;
 }
 
-const AdminHeader = ({ 
-  branch, 
-  setBranch, 
-  userRole, 
-  canViewAllBranches, 
-  canCreateBookings, 
+const AdminHeader = ({
+  branch,
+  setBranch,
+  userRole,
+  canViewAllBranches,
+  canCreateBookings,
   canEditEquipment,
-  onCreateBookingClick 
+  onCreateBookingClick
 }: AdminHeaderProps) => {
-  const navigate = useNavigate();
+  const { user, logout } = useAdminAuth();
   const currentBranch = BRANCHES.find(b => b.id === branch);
-  const currentUserRole = USER_ROLES.find(r => r.id === userRole);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="bg-white shadow-sm border-b">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
+          <div className="flex items-center space-x-6">
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-gray-900">Rent2Recover Admin</h1>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  {currentUserRole?.name}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-gray-600">
+              <h1 className="text-2xl font-bold text-gray-900">Rent2Recover Admin</h1>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="h-4 w-4" />
-                {currentBranch?.name} • Medical Equipment Rental Management
+                {canViewAllBranches ? (
+                  <Select value={branch} onValueChange={setBranch}>
+                    <SelectTrigger className="w-48 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BRANCHES.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span>{currentBranch?.name} Branch</span>
+                )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {canViewAllBranches && (
-              <Select value={branch} onValueChange={setBranch}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BRANCHES.map(branch => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            
-            <NotificationsPanel />
-            
+
+          <div className="flex items-center space-x-4">
             {canCreateBookings && (
-              <Button 
-                size="sm" 
-                className="bg-green-600 hover:bg-green-700"
-                onClick={onCreateBookingClick}
-              >
+              <Button onClick={onCreateBookingClick}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Booking
               </Button>
             )}
-
-            {canEditEquipment && (
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Equipment
-              </Button>
-            )}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  {user?.role === 'super-admin' ? (
+                    <Shield className="h-4 w-4" />
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
+                  <span>{user?.username}</span>
+                  <Badge variant={user?.role === 'super-admin' ? 'destructive' : 'default'}>
+                    {user?.role}
+                  </Badge>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
