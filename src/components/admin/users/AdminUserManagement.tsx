@@ -26,7 +26,7 @@ const AdminUserManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
   
-  const { getAdmins, deleteAdmin } = useAdminAuth();
+  const { getAdmins, deleteAdmin, user } = useAdminAuth();
   const { toast } = useToast();
 
   const loadAdmins = async () => {
@@ -89,6 +89,26 @@ const AdminUserManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Currently Logged In User */}
+      {user && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-blue-900">
+                  Logged in as: <span className="font-bold">{user.username}</span>
+                </p>
+                <p className="text-xs text-blue-700">{user.email}</p>
+              </div>
+              <Badge variant="default" className="ml-auto">
+                {user.role}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Admin Users</CardTitle>
@@ -146,27 +166,30 @@ const AdminUserManagement = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Admin User</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete {admin.username}? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteAdmin(admin.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {/* Prevent user from deleting themselves */}
+                      {user?.id !== admin.id && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Admin User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {admin.username}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteAdmin(admin.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
