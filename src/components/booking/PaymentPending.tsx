@@ -1,7 +1,9 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Smartphone, ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { BookingData } from "@/hooks/useBookingWorkflow";
+import PayFastPayment from "./PayFastPayment";
 
 interface PaymentPendingProps {
   bookingData: BookingData;
@@ -10,6 +12,8 @@ interface PaymentPendingProps {
 }
 
 const PaymentPending = ({ bookingData, onPaymentComplete, onBack }: PaymentPendingProps) => {
+  const customerName = `${bookingData.customerInfo.firstName} ${bookingData.customerInfo.lastName}`;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
@@ -49,35 +53,19 @@ const PaymentPending = ({ bookingData, onPaymentComplete, onBack }: PaymentPendi
           </CardContent>
         </Card>
 
-        {/* Payment Options */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Payment Options</CardTitle>
-            <CardDescription>Choose your preferred payment method</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full h-16 flex items-center gap-4">
-              <CreditCard className="h-6 w-6" />
-              <div className="text-left">
-                <div className="font-semibold">Credit/Debit Card</div>
-                <div className="text-sm text-gray-600">Visa, Mastercard</div>
-              </div>
-              <ExternalLink className="h-4 w-4 ml-auto" />
-            </Button>
-
-            <Button variant="outline" className="w-full h-16 flex items-center gap-4">
-              <Smartphone className="h-6 w-6" />
-              <div className="text-left">
-                <div className="font-semibold">Instant EFT</div>
-                <div className="text-sm text-gray-600">Bank transfer via PayFast</div>
-              </div>
-              <ExternalLink className="h-4 w-4 ml-auto" />
-            </Button>
-          </CardContent>
-        </Card>
+        {/* PayFast Payment Component */}
+        <PayFastPayment
+          amount={bookingData.deposit}
+          customerName={customerName}
+          customerEmail={bookingData.customerInfo.email}
+          customerPhone={bookingData.customerInfo.phone}
+          bookingReference={bookingData.quoteId}
+          onPaymentInitiated={onPaymentComplete}
+          onError={(error) => console.error('Payment error:', error)}
+        />
 
         {/* Important Information */}
-        <Card className="mb-6">
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle>Important Information</CardTitle>
           </CardHeader>
@@ -88,16 +76,6 @@ const PaymentPending = ({ bookingData, onPaymentComplete, onBack }: PaymentPendi
             <p>• Balance payment is due on delivery before equipment handover</p>
           </CardContent>
         </Card>
-
-        {/* Simulate Payment */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600 mb-4">
-            For demo purposes, click below to simulate payment completion
-          </p>
-          <Button onClick={onPaymentComplete} className="px-8">
-            Simulate Payment Complete
-          </Button>
-        </div>
       </div>
     </div>
   );

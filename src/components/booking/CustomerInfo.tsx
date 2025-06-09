@@ -1,12 +1,12 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, User, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail } from "lucide-react";
 import { BookingData } from "@/hooks/useBookingWorkflow";
+import AddressAutocomplete from "./AddressAutocomplete";
 
 interface CustomerInfoProps {
   customerInfo: BookingData['customerInfo'];
@@ -156,27 +156,22 @@ const CustomerInfo = ({ customerInfo, onInfoSubmit, onBack }: CustomerInfoProps)
                   </div>
                 </div>
 
-                {/* Delivery Information */}
+                {/* Delivery Information with Google Maps Autocomplete */}
                 <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapPin className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-semibold">Delivery Information</h3>
-                  </div>
+                  <h3 className="font-semibold mb-4">Delivery Information</h3>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="deliveryAddress">Full Delivery Address *</Label>
-                      <Textarea
-                        id="deliveryAddress"
-                        value={formData.deliveryAddress}
-                        onChange={(e) => updateField('deliveryAddress', e.target.value)}
-                        placeholder="123 Main Street, Suburb, City, Postal Code"
-                        rows={3}
-                        className={errors.deliveryAddress ? 'border-red-500' : ''}
-                      />
-                      {errors.deliveryAddress && (
-                        <p className="text-red-500 text-sm mt-1">{errors.deliveryAddress}</p>
-                      )}
-                    </div>
+                    <AddressAutocomplete
+                      value={formData.deliveryAddress}
+                      onChange={(address) => updateField('deliveryAddress', address)}
+                      label="Full Delivery Address"
+                      placeholder="Start typing your address..."
+                      required
+                      className={errors.deliveryAddress ? 'border-red-500' : ''}
+                    />
+                    {errors.deliveryAddress && (
+                      <p className="text-red-500 text-sm mt-1">{errors.deliveryAddress}</p>
+                    )}
+                    
                     <div>
                       <Label htmlFor="specialInstructions">Special Instructions (Optional)</Label>
                       <Textarea
