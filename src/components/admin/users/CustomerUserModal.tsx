@@ -51,7 +51,7 @@ const CustomerUserModal = ({ isOpen, onClose, onSuccess, customer }: CustomerUse
     }
   }, [customer, isOpen]);
 
-  const handleAddressSelect = (address: string, latitude?: number, longitude?: number) => {
+  const handleAddressChange = (address: string, latitude?: number, longitude?: number) => {
     setDeliveryAddress(address);
     setAddressLatitude(latitude);
     setAddressLongitude(longitude);
@@ -140,7 +140,7 @@ const CustomerUserModal = ({ isOpen, onClose, onSuccess, customer }: CustomerUse
             <Label htmlFor="address">Delivery Address</Label>
             <AddressAutocomplete
               value={deliveryAddress}
-              onAddressSelect={handleAddressSelect}
+              onChange={handleAddressChange}
               placeholder="Search for delivery address..."
             />
           </div>

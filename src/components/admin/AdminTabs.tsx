@@ -67,30 +67,25 @@ const AdminTabs = ({
 
       <TabsContent value="overview">
         <DashboardOverview 
-          branch={branch} 
-          canViewAllBranches={canViewAllBranches} 
+          branch={branch}
         />
       </TabsContent>
 
       <TabsContent value="calendar">
         <BookingCalendar 
-          branch={branch} 
-          canViewAllBranches={canViewAllBranches} 
+          branch={branch}
         />
       </TabsContent>
 
       <TabsContent value="inventory">
         <InventoryManager 
-          branch={branch} 
-          canViewAllBranches={canViewAllBranches}
-          canEditEquipment={canEditEquipment}
+          branch={branch}
         />
       </TabsContent>
 
       <TabsContent value="bookings">
         <BookingManager 
-          branch={branch} 
-          canViewAllBranches={canViewAllBranches} 
+          branch={branch}
         />
       </TabsContent>
 
