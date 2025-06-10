@@ -26,7 +26,8 @@ const CategorySettingsModal = ({
   const [dailyRate, setDailyRate] = useState(0);
   const [baseFee, setBaseFee] = useState(50);
   const [crossBranchSurcharge, setCrossBranchSurcharge] = useState(150);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const { toast } = useToast();
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
@@ -46,22 +47,23 @@ const CategorySettingsModal = ({
   const autoSave = async (updates: any) => {
     if (!category) return;
     
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       await updateCategoryPricing(category, updates);
       onUpdate(category, updates);
+      setLastSaved(new Date());
       toast({
-        title: "Settings Auto-Saved",
-        description: "Category pricing has been updated"
+        title: "Settings Saved Successfully",
+        description: "Category pricing has been updated across all modules"
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to save settings",
+        title: "Save Failed",
+        description: "Failed to save category settings to database",
         variant: "destructive"
       });
     }
-    setIsLoading(false);
+    setIsSaving(false);
   };
 
   const handleDailyRateChange = (value: number) => {
@@ -110,10 +112,13 @@ const CategorySettingsModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Category Settings</DialogTitle>
+          <DialogTitle>Category Settings - {categoryInfo.name}</DialogTitle>
           <DialogDescription>
-            Configure pricing and delivery settings for {categoryInfo.name}
-            {isLoading && <span className="text-blue-600"> • Auto-saving...</span>}
+            Configure pricing and delivery settings
+            {isSaving && <span className="text-blue-600"> • Saving...</span>}
+            {lastSaved && !isSaving && (
+              <span className="text-green-600"> • Last saved: {lastSaved.toLocaleTimeString()}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
@@ -125,8 +130,9 @@ const CategorySettingsModal = ({
                 id="dailyRate"
                 type="number"
                 value={dailyRate}
-                onChange={(e) => handleDailyRateChange(Number(e.target.value))}
+                onChange={(e) => setDailyRate(Number(e.target.value))}
                 onBlur={(e) => handleDailyRateChange(Number(e.target.value))}
+                className="text-center"
               />
             </div>
             <div>
@@ -135,8 +141,9 @@ const CategorySettingsModal = ({
                 id="weeklyRate"
                 type="number"
                 value={weeklyRate}
-                onChange={(e) => handleWeeklyRateChange(Number(e.target.value))}
+                onChange={(e) => setWeeklyRate(Number(e.target.value))}
                 onBlur={(e) => handleWeeklyRateChange(Number(e.target.value))}
+                className="text-center"
               />
             </div>
             <div>
@@ -145,8 +152,9 @@ const CategorySettingsModal = ({
                 id="monthlyRate"
                 type="number"
                 value={monthlyRate}
-                onChange={(e) => handleMonthlyRateChange(Number(e.target.value))}
+                onChange={(e) => setMonthlyRate(Number(e.target.value))}
                 onBlur={(e) => handleMonthlyRateChange(Number(e.target.value))}
+                className="text-center"
               />
             </div>
           </div>
@@ -158,8 +166,9 @@ const CategorySettingsModal = ({
                 id="baseFee"
                 type="number"
                 value={baseFee}
-                onChange={(e) => handleBaseFeeChange(Number(e.target.value))}
+                onChange={(e) => setBaseFee(Number(e.target.value))}
                 onBlur={(e) => handleBaseFeeChange(Number(e.target.value))}
+                className="text-center"
               />
             </div>
             <div>
@@ -168,18 +177,22 @@ const CategorySettingsModal = ({
                 id="crossBranchSurcharge"
                 type="number"
                 value={crossBranchSurcharge}
-                onChange={(e) => handleCrossBranchSurchargeChange(Number(e.target.value))}
+                onChange={(e) => setCrossBranchSurcharge(Number(e.target.value))}
                 onBlur={(e) => handleCrossBranchSurchargeChange(Number(e.target.value))}
+                className="text-center"
               />
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 mt-4">
-            Changes are automatically saved when you finish editing each field.
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-xs text-blue-700">
+              💡 Changes are automatically saved when you finish editing each field. 
+              Updates will immediately reflect in Overview, Calendar, and Bookings tabs.
+            </p>
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={onClose}>Close</Button>
+            <Button onClick={onClose}>Done</Button>
           </div>
         </div>
       </DialogContent>

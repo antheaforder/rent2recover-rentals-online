@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +24,7 @@ import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type Equipmen
 import CategoryDetailsView from "@/components/admin/inventory/CategoryDetailsView";
 import CategoryManagerModal from "@/components/admin/inventory/CategoryManagerModal";
 import EquipmentItemModal from "@/components/admin/inventory/EquipmentItemModal";
+import CategorySettingsModal from "@/components/admin/inventory/CategorySettingsModal";
 
 interface InventoryManagerProps {
   branch: string;
@@ -77,8 +77,8 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
       });
       setIsCategoryModalOpen(false);
       toast({
-        title: "Category Updated",
-        description: "Category settings have been saved successfully"
+        title: "Category Updated Successfully",
+        description: "Category settings have been saved and applied across all modules"
       });
     } catch (error) {
       toast({
@@ -104,15 +104,15 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           purchaseDate: itemData.purchaseDate
         });
         toast({
-          title: "Item Added",
-          description: `${itemData.name} has been added to inventory`
+          title: "Item Added Successfully",
+          description: `${itemData.name} has been added to inventory and saved to database`
         });
       }
       setIsItemModalOpen(false);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save item",
+        description: "Failed to save item to database",
         variant: "destructive"
       });
     }
@@ -242,13 +242,12 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
         })}
       </div>
 
-      {/* Category Manager Modal */}
-      <CategoryManagerModal
+      {/* Category Manager Modal - Use CategorySettingsModal instead */}
+      <CategorySettingsModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         category={modalCategory}
         onUpdate={handleUpdateCategory}
-        mode={modalMode}
       />
 
       {/* Equipment Item Modal */}

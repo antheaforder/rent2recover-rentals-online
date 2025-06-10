@@ -56,7 +56,7 @@ export const createBooking = async (request: CreateBookingRequest): Promise<Book
     customerPhone: request.customer.phone,
     startDate: request.startDate,
     endDate: request.endDate,
-    status: 'pending',
+    status: 'confirmed',
     branch: request.branch,
     assignedItemId: assignedItem.id,
     deliveryRequired: true,
@@ -72,7 +72,7 @@ export const createBooking = async (request: CreateBookingRequest): Promise<Book
   const bookings = getBookingStore();
   setBookingStore([...bookings, booking]);
 
-  // Update item status
+  // Update item status to booked
   const inventory = getInventoryStore();
   const itemIndex = inventory.findIndex(item => item.id === assignedItem.id);
   if (itemIndex !== -1) {
@@ -85,6 +85,12 @@ export const createBooking = async (request: CreateBookingRequest): Promise<Book
     };
     setInventoryStore(updatedInventory);
   }
+
+  // Trigger refresh events for other components
+  window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+  window.dispatchEvent(new CustomEvent('bookingCreated', { 
+    detail: { booking, assignedItem } 
+  }));
 
   return booking;
 };

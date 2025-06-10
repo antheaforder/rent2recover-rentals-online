@@ -18,23 +18,24 @@ import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type Inventor
 import InventoryItemsList from "@/components/admin/inventory/InventoryItemsList";
 import AddInventoryItemModal from "@/components/admin/inventory/AddInventoryItemModal";
 import EditInventoryItemModal from "@/components/admin/inventory/EditInventoryItemModal";
+import CreateBookingModal from "@/components/admin/CreateBookingModal";
 
 interface CategoryDetailsViewProps {
   category: EquipmentCategoryId;
   branch: string;
   onBack: () => void;
-  onCreateBooking?: (item: InventoryItem) => void;
 }
 
 const CategoryDetailsView = ({ 
   category, 
   branch, 
-  onBack,
-  onCreateBooking
+  onBack
 }: CategoryDetailsViewProps) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [selectedItemForBooking, setSelectedItemForBooking] = useState<InventoryItem | null>(null);
   const [inventory, setInventory] = useState(() => getInventoryByCategory(category));
   const { toast } = useToast();
 
@@ -79,8 +80,8 @@ const CategoryDetailsView = ({
       refreshInventory();
       setIsAddModalOpen(false);
       toast({
-        title: "Item Added",
-        description: `${newItem.name} has been added to inventory`
+        title: "Item Added Successfully",
+        description: `${newItem.name} has been added to inventory and saved to database`
       });
     } catch (error) {
       toast({
@@ -101,8 +102,8 @@ const CategoryDetailsView = ({
       await updateInventoryItem(itemId, updates);
       refreshInventory();
       toast({
-        title: "Item Updated",
-        description: "Item details have been saved"
+        title: "Item Updated Successfully",
+        description: "Item details have been saved to database"
       });
     } catch (error) {
       toast({
@@ -118,8 +119,8 @@ const CategoryDetailsView = ({
       await deleteInventoryItem(itemId);
       refreshInventory();
       toast({
-        title: "Item Deleted",
-        description: "Item has been removed from inventory"
+        title: "Item Deleted Successfully",
+        description: "Item has been removed from inventory and database"
       });
     } catch (error) {
       toast({
@@ -135,7 +136,7 @@ const CategoryDetailsView = ({
       await checkInItem(itemId);
       refreshInventory();
       toast({
-        title: "Item Checked In",
+        title: "Item Checked In Successfully",
         description: "Item status updated to available"
       });
     } catch (error) {
@@ -147,25 +148,20 @@ const CategoryDetailsView = ({
     }
   };
 
-  const handleCheckOut = async (item: InventoryItem) => {
-    if (onCreateBooking) {
-      onCreateBooking(item);
-    } else {
-      try {
-        await checkOutItem(item.id);
-        refreshInventory();
-        toast({
-          title: "Item Checked Out",
-          description: "Item status updated to booked"
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to check out item",
-          variant: "destructive"
-        });
-      }
-    }
+  const handleCheckOut = (item: InventoryItem) => {
+    // Instead of directly checking out, open booking modal
+    setSelectedItemForBooking(item);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingCreated = () => {
+    refreshInventory();
+    setIsBookingModalOpen(false);
+    setSelectedItemForBooking(null);
+    toast({
+      title: "Booking Created Successfully",
+      description: "Item has been checked out and booking record created"
+    });
   };
 
   const handleCreateMaintenanceBlock = async (itemId: string, reason: string) => {
@@ -267,6 +263,18 @@ const CategoryDetailsView = ({
         item={editingItem}
         onSave={handleSaveItemChanges}
         onDelete={handleDeleteItem}
+      />
+
+      <CreateBookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => {
+          setIsBookingModalOpen(false);
+          setSelectedItemForBooking(null);
+        }}
+        branch={branch}
+        onBookingCreated={handleBookingCreated}
+        preSelectedCategory={selectedItemForBooking ? category : undefined}
+        preSelectedItem={selectedItemForBooking}
       />
     </div>
   );

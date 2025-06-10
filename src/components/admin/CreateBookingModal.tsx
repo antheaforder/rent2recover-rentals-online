@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
-import { EQUIPMENT_CATEGORIES, BRANCHES, type CreateBookingRequest } from "@/config/equipmentCategories";
+import { EQUIPMENT_CATEGORIES, BRANCHES, type CreateBookingRequest, type InventoryItem, type EquipmentCategoryId } from "@/config/equipmentCategories";
 import { checkAvailability, createBooking, calculateBookingCost } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,9 +20,18 @@ interface CreateBookingModalProps {
   onClose: () => void;
   branch: string;
   onBookingCreated: () => void;
+  preSelectedCategory?: EquipmentCategoryId;
+  preSelectedItem?: InventoryItem | null;
 }
 
-const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: CreateBookingModalProps) => {
+const CreateBookingModal = ({ 
+  isOpen, 
+  onClose, 
+  branch, 
+  onBookingCreated,
+  preSelectedCategory,
+  preSelectedItem
+}: CreateBookingModalProps) => {
   const [formData, setFormData] = useState<Partial<CreateBookingRequest>>({
     branch: branch as any,
     createdBy: 'admin'
@@ -32,6 +41,17 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
   const [availability, setAvailability] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Set pre-selected values when modal opens
+  useEffect(() => {
+    if (isOpen && preSelectedCategory) {
+      setFormData(prev => ({
+        ...prev,
+        category: preSelectedCategory,
+        branch: branch as any
+      }));
+    }
+  }, [isOpen, preSelectedCategory, branch]);
 
   const handleCheckAvailability = async () => {
     if (!formData.category || !startDate || !endDate) {
@@ -77,8 +97,8 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
       });
 
       toast({
-        title: "Booking Created",
-        description: "New booking has been successfully created"
+        title: "Booking Created Successfully",
+        description: "New booking has been created and item checked out"
       });
 
       onBookingCreated();
@@ -114,9 +134,14 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Booking</DialogTitle>
+          <DialogTitle>
+            {preSelectedItem ? `Create Booking for ${preSelectedItem.name}` : 'Create New Booking'}
+          </DialogTitle>
           <DialogDescription>
-            Create a manual booking for {BRANCHES.find(b => b.id === branch)?.name}
+            {preSelectedItem 
+              ? `Check out ${preSelectedItem.name} (${preSelectedItem.serialNumber}) by creating a booking`
+              : `Create a manual booking for ${BRANCHES.find(b => b.id === branch)?.name}`
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -131,6 +156,7 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
                   setFormData(prev => ({ ...prev, category: value as any }));
                   setAvailability(null);
                 }}
+                disabled={!!preSelectedCategory}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -143,6 +169,11 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
                   ))}
                 </SelectContent>
               </Select>
+              {preSelectedItem && (
+                <p className="text-sm text-blue-600 mt-1">
+                  Pre-selected: {preSelectedItem.name}
+                </p>
+              )}
             </div>
             <div>
               <Label>Branch</Label>
@@ -347,7 +378,7 @@ const CreateBookingModal = ({ isOpen, onClose, branch, onBookingCreated }: Creat
                 disabled={isLoading || !formData.customer?.name}
                 className="flex-1"
               >
-                {isLoading ? "Creating..." : "Create Booking"}
+                {isLoading ? "Creating..." : "Create Booking & Check Out"}
               </Button>
             )}
           </div>
