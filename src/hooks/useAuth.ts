@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,55 +19,78 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchUserProfile = async (user: User) => {
+    try {
+      console.log('Fetching profile for user:', user.email);
+      
+      // First try to fetch from customer_users
+      const { data: customerData, error: customerError } = await supabase
+        .from('customer_users')
+        .select('*')
+        .eq('email', user.email!)
+        .single();
+      
+      if (customerData && !customerError) {
+        console.log('Found customer profile:', customerData);
+        setProfile({
+          id: customerData.id,
+          email: customerData.email,
+          full_name: customerData.full_name,
+          role: 'customer',
+          created_at: customerData.created_at,
+          updated_at: customerData.updated_at,
+        });
+        return;
+      }
+
+      // Then try admin_users
+      const { data: adminData, error: adminError } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('email', user.email!)
+        .single();
+      
+      if (adminData && !adminError) {
+        console.log('Found admin profile:', adminData);
+        setProfile({
+          id: adminData.id,
+          email: adminData.email,
+          full_name: adminData.username,
+          role: adminData.role === 'super-admin' ? 'super_admin' : adminData.role,
+          created_at: adminData.created_at,
+          updated_at: adminData.updated_at,
+        });
+        return;
+      }
+
+      console.log('No profile found for user');
+      setProfile(null);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      setProfile(null);
+    }
+  };
+
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        if (!mounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Check if user exists in customer_users table (for customers)
-          setTimeout(async () => {
-            try {
-              const { data: customerData } = await supabase
-                .from('customer_users')
-                .select('*')
-                .eq('email', session.user.email!)
-                .single();
-              
-              if (customerData) {
-                setProfile({
-                  id: customerData.id,
-                  email: customerData.email,
-                  full_name: customerData.full_name,
-                  role: 'customer',
-                  created_at: customerData.created_at,
-                  updated_at: customerData.updated_at,
-                });
-              } else {
-                // Check admin_users table
-                const { data: adminData } = await supabase
-                  .from('admin_users')
-                  .select('*')
-                  .eq('email', session.user.email!)
-                  .single();
-                
-                if (adminData) {
-                  setProfile({
-                    id: adminData.id,
-                    email: adminData.email,
-                    full_name: adminData.username, // Use username as full_name for admin
-                    role: adminData.role,
-                    created_at: adminData.created_at,
-                    updated_at: adminData.updated_at,
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching profile:', error);
+          // Defer profile fetching to avoid potential deadlocks
+          setTimeout(() => {
+            if (mounted) {
+              fetchUserProfile(session.user);
             }
-          }, 0);
+          }, 100);
         } else {
           setProfile(null);
         }
@@ -78,13 +100,35 @@ export const useAuth = () => {
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          console.log('Initial session check:', session?.user?.email);
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user);
+          }
+        }
+      } catch (error) {
+        console.error('Error in initAuth:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    initAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, role: string = 'customer') => {
@@ -110,7 +154,7 @@ export const useAuth = () => {
             email,
             username: fullName,
             role: 'super-admin',
-            password_hash: 'managed_by_auth' // Placeholder since auth handles passwords
+            password_hash: 'managed_by_auth'
           }]);
       } else {
         await supabase
@@ -142,12 +186,16 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign in:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
+
+      console.log('Sign in successful:', data.user?.email);
 
       toast({
         title: "Welcome back!",
@@ -157,6 +205,7 @@ export const useAuth = () => {
       return { data, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign in';
+      console.error('Sign in error:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -266,6 +315,17 @@ export const useAuth = () => {
     }
   };
 
+  const isAuthenticated = !!user;
+  const isSuperAdmin = profile?.role === 'super_admin' || profile?.role === 'super-admin';
+
+  console.log('Auth state:', { 
+    user: user?.email, 
+    profile: profile?.role, 
+    isAuthenticated, 
+    isSuperAdmin, 
+    loading 
+  });
+
   return {
     user,
     session,
@@ -276,7 +336,7 @@ export const useAuth = () => {
     signOut,
     updateProfile,
     changePassword,
-    isAuthenticated: !!user,
-    isSuperAdmin: profile?.role === 'super_admin' || profile?.role === 'super-admin'
+    isAuthenticated,
+    isSuperAdmin
   };
 };

@@ -1,6 +1,6 @@
 
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +8,17 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteProps) => {
-  const { isAuthenticated, isSuperAdmin, loading } = useAuth();
+  const { isAuthenticated, isSuperAdmin, loading, profile } = useAuth();
+  const location = useLocation();
+
+  console.log('ProtectedRoute check:', { 
+    isAuthenticated, 
+    isSuperAdmin, 
+    loading, 
+    requireSuperAdmin, 
+    userRole: profile?.role,
+    currentPath: location.pathname 
+  });
 
   if (loading) {
     return (
@@ -19,13 +29,16 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
   }
 
   if (!isAuthenticated) {
+    console.log('User not authenticated, redirecting to login');
     return <Navigate to="/admin/login" replace />;
   }
 
   if (requireSuperAdmin && !isSuperAdmin) {
+    console.log('User is not super admin, redirecting to login');
     return <Navigate to="/admin/login" replace />;
   }
 
+  console.log('Access granted');
   return <>{children}</>;
 };
 
