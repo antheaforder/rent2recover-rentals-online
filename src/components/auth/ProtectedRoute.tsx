@@ -29,18 +29,23 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
     );
   }
 
-  const { isAuthenticated, isSuperAdmin, loading, profile } = authHook;
+  const { isAuthenticated, isSuperAdmin, loading, profile, user } = authHook;
 
-  console.log('ProtectedRoute check:', { 
+  console.log('ProtectedRoute detailed check:', { 
     isAuthenticated, 
     isSuperAdmin, 
     loading, 
     requireSuperAdmin, 
+    userEmail: user?.email,
     userRole: profile?.role,
-    currentPath: location.pathname 
+    profileData: profile,
+    currentPath: location.pathname,
+    userMetadata: user?.user_metadata,
+    appMetadata: user?.app_metadata
   });
 
   if (loading) {
+    console.log('ProtectedRoute: Auth still loading, showing spinner');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -52,16 +57,19 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
   }
 
   if (!isAuthenticated) {
-    console.log('User not authenticated, redirecting to login');
+    console.log('ProtectedRoute: User not authenticated, redirecting to login');
     return <Navigate to="/admin/login" replace />;
   }
 
   if (requireSuperAdmin && !isSuperAdmin) {
-    console.log('User is not super admin, redirecting to login');
+    console.log('ProtectedRoute: User is authenticated but not super admin');
+    console.log('ProtectedRoute: User role:', profile?.role);
+    console.log('ProtectedRoute: isSuperAdmin result:', isSuperAdmin);
+    console.log('ProtectedRoute: Redirecting to login');
     return <Navigate to="/admin/login" replace />;
   }
 
-  console.log('Access granted');
+  console.log('ProtectedRoute: Access granted');
   return <>{children}</>;
 };
 

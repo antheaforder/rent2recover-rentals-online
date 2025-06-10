@@ -22,6 +22,8 @@ export const useAuth = () => {
   const fetchUserProfile = async (user: User) => {
     try {
       console.log('Fetching profile for user:', user.email);
+      console.log('User metadata:', user.user_metadata);
+      console.log('User app metadata:', user.app_metadata);
       
       // First try to fetch from customer_users
       const { data: customerData, error: customerError } = await supabase
@@ -29,6 +31,8 @@ export const useAuth = () => {
         .select('*')
         .eq('email', user.email!)
         .single();
+      
+      console.log('Customer query result:', { customerData, customerError });
       
       if (customerData && !customerError) {
         console.log('Found customer profile:', customerData);
@@ -50,20 +54,57 @@ export const useAuth = () => {
         .eq('email', user.email!)
         .single();
       
+      console.log('Admin query result:', { adminData, adminError });
+      
       if (adminData && !adminError) {
         console.log('Found admin profile:', adminData);
+        const normalizedRole = adminData.role === 'super-admin' ? 'super_admin' : adminData.role;
+        console.log('Normalized role:', normalizedRole);
         setProfile({
           id: adminData.id,
           email: adminData.email,
           full_name: adminData.username,
-          role: adminData.role === 'super-admin' ? 'super_admin' : adminData.role,
+          role: normalizedRole,
           created_at: adminData.created_at,
           updated_at: adminData.updated_at,
         });
         return;
       }
 
-      console.log('No profile found for user');
+      console.log('No profile found for user, checking if we need to create one');
+      
+      // If no profile exists but user has metadata indicating super admin role
+      if (user.user_metadata?.role === 'super_admin' || user.app_metadata?.role === 'super_admin') {
+        console.log('User has super_admin metadata, creating admin profile');
+        
+        const { data: newAdminData, error: createError } = await supabase
+          .from('admin_users')
+          .insert([{
+            email: user.email!,
+            username: user.user_metadata?.full_name || user.email!.split('@')[0],
+            role: 'super-admin',
+            password_hash: 'managed_by_auth'
+          }])
+          .select()
+          .single();
+        
+        if (newAdminData && !createError) {
+          console.log('Created new admin profile:', newAdminData);
+          setProfile({
+            id: newAdminData.id,
+            email: newAdminData.email,
+            full_name: newAdminData.username,
+            role: 'super_admin',
+            created_at: newAdminData.created_at,
+            updated_at: newAdminData.updated_at,
+          });
+          return;
+        } else {
+          console.error('Failed to create admin profile:', createError);
+        }
+      }
+
+      console.log('No profile found and no admin metadata, setting profile to null');
       setProfile(null);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -138,6 +179,8 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string, fullName: string, role: string = 'customer') => {
     try {
+      console.log('Attempting signup with role:', role);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -150,26 +193,38 @@ export const useAuth = () => {
       });
 
       if (error) throw error;
+      
+      console.log('Signup successful, user data:', data.user);
 
       // Create profile record based on role
       if (role === 'super_admin') {
-        await supabase
+        console.log('Creating admin user profile');
+        const { data: adminData, error: adminError } = await supabase
           .from('admin_users')
           .insert([{
             email,
             username: fullName,
             role: 'super-admin',
             password_hash: 'managed_by_auth'
-          }]);
+          }])
+          .select()
+          .single();
+        
+        console.log('Admin profile creation result:', { adminData, adminError });
       } else {
-        await supabase
+        console.log('Creating customer user profile');
+        const { data: customerData, error: customerError } = await supabase
           .from('customer_users')
           .insert([{
             email,
             full_name: fullName,
             phone: '',
             delivery_address: ''
-          }]);
+          }])
+          .select()
+          .single();
+        
+        console.log('Customer profile creation result:', { customerData, customerError });
       }
 
       toast({
@@ -180,6 +235,7 @@ export const useAuth = () => {
       return { data, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create account';
+      console.error('Signup error:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -328,7 +384,8 @@ export const useAuth = () => {
     profile: profile?.role, 
     isAuthenticated, 
     isSuperAdmin, 
-    loading 
+    loading,
+    profileObject: profile
   });
 
   return {
