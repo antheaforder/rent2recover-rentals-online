@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,26 +21,82 @@ const AuthPage = () => {
     role: 'super_admin'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const { signIn, signUp, isAuthenticated, loading } = useAuth();
+  const authHook = useAuth();
+  
+  console.log('AuthPage render:', { 
+    authHook, 
+    isAuthenticated: authHook?.isAuthenticated, 
+    loading: authHook?.loading,
+    isSuperAdmin: authHook?.isSuperAdmin 
+  });
 
-  if (loading) {
+  // Handle case where useAuth hook might fail
+  if (!authHook) {
+    console.error('useAuth hook returned null/undefined');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6">
+            <Alert variant="destructive">
+              <AlertDescription>
+                Authentication system is not available. Please refresh the page.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (isAuthenticated) {
+  const { signIn, signUp, isAuthenticated, isSuperAdmin, loading } = authHook;
+
+  // Show loading spinner while auth is initializing
+  if (loading) {
+    console.log('Auth loading, showing spinner');
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect authenticated super admin users
+  if (isAuthenticated && isSuperAdmin) {
+    console.log('User is authenticated and super admin, redirecting to /admin');
     return <Navigate to="/admin" replace />;
+  }
+
+  // Redirect authenticated non-admin users
+  if (isAuthenticated && !isSuperAdmin) {
+    console.log('User is authenticated but not super admin, redirecting to /');
+    return <Navigate to="/" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    await signIn(formData.email, formData.password);
+    try {
+      console.log('Attempting sign in with:', formData.email);
+      const result = await signIn(formData.email, formData.password);
+      
+      if (result?.error) {
+        setError(result.error);
+        console.error('Sign in error:', result.error);
+      } else {
+        console.log('Sign in successful');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign in failed';
+      setError(errorMessage);
+      console.error('Sign in exception:', err);
+    }
     
     setIsLoading(false);
   };
@@ -48,14 +104,30 @@ const AuthPage = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    await signUp(formData.email, formData.password, formData.fullName, formData.role);
+    try {
+      console.log('Attempting sign up with:', formData.email);
+      const result = await signUp(formData.email, formData.password, formData.fullName, formData.role);
+      
+      if (result?.error) {
+        setError(result.error);
+        console.error('Sign up error:', result.error);
+      } else {
+        console.log('Sign up successful');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Sign up failed';
+      setError(errorMessage);
+      console.error('Sign up exception:', err);
+    }
     
     setIsLoading(false);
   };
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setError(''); // Clear error when user starts typing
   };
 
   return (
@@ -71,6 +143,12 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -91,6 +169,7 @@ const AuthPage = () => {
                       onChange={(e) => updateFormData('email', e.target.value)}
                       className="pl-9"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -107,11 +186,13 @@ const AuthPage = () => {
                       onChange={(e) => updateFormData('password', e.target.value)}
                       className="pl-9 pr-9"
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -138,6 +219,7 @@ const AuthPage = () => {
                       onChange={(e) => updateFormData('fullName', e.target.value)}
                       className="pl-9"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -154,6 +236,7 @@ const AuthPage = () => {
                       onChange={(e) => updateFormData('email', e.target.value)}
                       className="pl-9"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -170,11 +253,13 @@ const AuthPage = () => {
                       onChange={(e) => updateFormData('password', e.target.value)}
                       className="pl-9 pr-9"
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -183,7 +268,11 @@ const AuthPage = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={formData.role} onValueChange={(value) => updateFormData('role', value)}>
+                  <Select 
+                    value={formData.role} 
+                    onValueChange={(value) => updateFormData('role', value)}
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

@@ -81,21 +81,26 @@ export const useAuth = () => {
         
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        try {
+          setSession(session);
+          setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // Defer profile fetching to avoid potential deadlocks
-          setTimeout(() => {
-            if (mounted) {
-              fetchUserProfile(session.user);
-            }
-          }, 100);
-        } else {
-          setProfile(null);
+          if (session?.user) {
+            // Defer profile fetching to avoid potential deadlocks
+            setTimeout(() => {
+              if (mounted) {
+                fetchUserProfile(session.user);
+              }
+            }, 100);
+          } else {
+            setProfile(null);
+          }
+          
+          setLoading(false);
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 

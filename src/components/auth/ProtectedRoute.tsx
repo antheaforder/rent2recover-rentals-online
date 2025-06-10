@@ -8,8 +8,28 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteProps) => {
-  const { isAuthenticated, isSuperAdmin, loading, profile } = useAuth();
+  const authHook = useAuth();
   const location = useLocation();
+
+  // Handle case where useAuth hook might fail
+  if (!authHook) {
+    console.error('useAuth hook returned null/undefined in ProtectedRoute');
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">Authentication Error</div>
+          <button 
+            onClick={() => window.location.href = '/admin/login'}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { isAuthenticated, isSuperAdmin, loading, profile } = authHook;
 
   console.log('ProtectedRoute check:', { 
     isAuthenticated, 
@@ -23,7 +43,10 @@ const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteP
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
