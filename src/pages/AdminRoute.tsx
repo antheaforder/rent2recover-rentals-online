@@ -1,10 +1,10 @@
 
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import AdminLogin from './AdminLogin';
+import { useAuth } from '@/hooks/useAuth';
+import AuthPage from './AuthPage';
 import AdminDashboard from './AdminDashboard';
 
 const AdminRoute = () => {
-  const { isLoggedIn, loading } = useAdminAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -14,7 +14,7 @@ const AdminRoute = () => {
     );
   }
 
-  return isLoggedIn ? <AdminDashboard /> : <AdminLogin />;
+  return isAuthenticated ? <AdminDashboard /> : <AuthPage />;
 };
 
 export default AdminRoute;

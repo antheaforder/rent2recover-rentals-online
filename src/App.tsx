@@ -8,10 +8,12 @@ import Index from "./pages/Index";
 import BrowseEquipment from "./pages/BrowseEquipment";
 import BookingFlow from "./pages/BookingFlow";
 import CustomerDashboard from "./pages/CustomerDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
 import BookingWorkflow from "./pages/BookingWorkflow";
 import CustomerBooking from "./pages/CustomerBooking";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import AdminRoute from "./pages/AdminRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +28,15 @@ const App = () => (
           <Route path="/browse/:categoryId" element={<BrowseEquipment />} />
           <Route path="/book/:categoryId" element={<BookingFlow />} />
           <Route path="/customer" element={<CustomerDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/login" element={<AuthPage />} />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminRoute />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/booking" element={<BookingWorkflow />} />
           <Route path="/customer-booking" element={<CustomerBooking />} />
           <Route path="*" element={<NotFound />} />

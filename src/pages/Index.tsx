@@ -1,187 +1,92 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Accessibility, Bed, Car, Heart, Shield, Clock, Activity, Stethoscope, Zap } from "lucide-react";
-import { getEquipmentCategories } from "@/services/categoryService";
-import { getInventoryByBranch } from "@/services/inventoryService";
+import { Link } from "react-router-dom";
+import EquipmentCategories from "../components/EquipmentCategories";
 
 const Index = () => {
-  const [selectedBranch, setSelectedBranch] = useState<"hilton" | "johannesburg" | null>(null);
-  const navigate = useNavigate();
-
-  const branches = [
-    {
-      id: "hilton" as const,
-      name: "Hilton (KZN)",
-      location: "Hilton, KwaZulu-Natal",
-      phone: "+27 33 343 1234",
-      email: "hilton@rent2recover.co.za"
-    },
-    {
-      id: "johannesburg" as const,
-      name: "Johannesburg (Gauteng)", 
-      location: "Johannesburg, Gauteng",
-      phone: "+27 11 987 6543",
-      email: "joburg@rent2recover.co.za"
-    }
-  ];
-
-  const iconMap = {
-    'electric-hospital-beds': Bed,
-    'electric-wheelchairs': Zap,
-    'wheelchairs': Accessibility,
-    'mobility-scooters': Car,
-    'commodes': Activity,
-    'electric-bath-lifts': Activity,
-    'swivel-bath-chairs': Activity,
-    'knee-scooters': Car,
-    'rollators': Heart,
-    'walker-frames': Heart,
-    'wheelchair-ramps': Activity,
-    'hoists': Activity,
-    'oxygen-concentrators': Stethoscope
-  };
-
-  const categories = getEquipmentCategories();
-
-  const getAvailableCount = (categoryId: string, branchId: string) => {
-    if (!branchId) return 0;
-    const inventory = getInventoryByBranch(branchId);
-    return inventory.filter(item => 
-      item.category === categoryId && item.status === 'available'
-    ).length;
-  };
-
-  const handleCategoryClick = (categoryId: string) => {
-    if (selectedBranch) {
-      navigate(`/browse/${categoryId}?branch=${selectedBranch}`);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Hero Section */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-              Rent<span className="text-blue-600">2</span>Recover
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              South Africa's trusted medical equipment rental service. 
-              Quality mobility aids for your recovery journey.
-            </p>
-          </div>
-
-          {/* Branch Selection */}
-          <div className="max-w-4xl mx-auto mb-12">
-            <h2 className="text-2xl font-semibold text-center mb-6">Choose Your Branch</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {branches.map((branch) => (
-                <Card 
-                  key={branch.id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    selectedBranch === branch.id ? 'ring-2 ring-blue-500 shadow-lg' : ''
-                  }`}
-                  onClick={() => setSelectedBranch(branch.id)}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-blue-600" />
-                      {branch.name}
-                    </CardTitle>
-                    <CardDescription>{branch.location}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>{branch.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>{branch.email}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-blue-600">Rent2Recover</h1>
+          <div className="flex gap-4">
+            <Link to="/customer">
+              <Button variant="outline">Customer Dashboard</Button>
+            </Link>
+            <Link to="/admin/login">
+              <Button>Admin Login</Button>
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-16 text-center">
+        <h2 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+          Medical Equipment Rental Made Simple
+        </h2>
+        <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          Rent high-quality medical equipment for recovery and rehabilitation. 
+          Quick delivery, professional service, and affordable rates across South Africa.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button size="lg" className="text-lg px-8">
+            Browse Equipment
+          </Button>
+          <Button variant="outline" size="lg" className="text-lg px-8">
+            Learn More
+          </Button>
+        </div>
+      </section>
 
       {/* Equipment Categories */}
-      {selectedBranch && (
-        <div className="container mx-auto px-4 py-16">
-          <h2 className="text-3xl font-bold text-center mb-12">Browse Our Medical Equipment</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {categories.map((category) => {
-              const IconComponent = iconMap[category.id as keyof typeof iconMap] || Activity;
-              const availableCount = getAvailableCount(category.id, selectedBranch);
-              
-              return (
-                <Card 
-                  key={category.id} 
-                  className="text-center hover:shadow-lg transition-shadow cursor-pointer group"
-                  onClick={() => handleCategoryClick(category.id)}
-                >
-                  <CardHeader>
-                    <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit group-hover:bg-blue-200 transition-colors">
-                      <IconComponent className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
-                      {category.name}
-                    </CardTitle>
-                    <CardDescription>
-                      From R{category.pricing.dailyRate}/day
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Badge 
-                      variant="secondary" 
-                      className={availableCount > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-                    >
-                      {availableCount > 0 ? `${availableCount} Available` : 'Currently Unavailable'}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <section className="container mx-auto px-4 py-16">
+        <h3 className="text-3xl font-bold text-center mb-12">Available Equipment</h3>
+        <EquipmentCategories />
+      </section>
 
       {/* Features Section */}
-      <div className="bg-gray-50 py-16">
+      <section className="bg-gray-50 py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose Rent2Recover?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
-                <Shield className="h-8 w-8 text-blue-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Quality Assured</h3>
-              <p className="text-gray-600">All equipment is regularly maintained and sanitized for your safety</p>
+              <h4 className="text-xl font-semibold mb-2">Fast Delivery</h4>
+              <p className="text-gray-600">Same-day delivery available in major cities</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-green-100 rounded-full w-fit">
-                <Clock className="h-8 w-8 text-green-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Flexible Rental</h3>
-              <p className="text-gray-600">Daily, weekly or monthly rentals to suit your recovery timeline</p>
+              <h4 className="text-xl font-semibold mb-2">Quality Assured</h4>
+              <p className="text-gray-600">All equipment is sanitized and safety tested</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-purple-100 rounded-full w-fit">
-                <Heart className="h-8 w-8 text-purple-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364" />
+                </svg>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Local Support</h3>
-              <p className="text-gray-600">Dedicated support teams in Hilton and Johannesburg for personal service</p>
+              <h4 className="text-xl font-semibold mb-2">24/7 Support</h4>
+              <p className="text-gray-600">Round-the-clock customer support</p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8">
+        <div className="container mx-auto px-4 text-center">
+          <p>&copy; 2024 Rent2Recover. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };
