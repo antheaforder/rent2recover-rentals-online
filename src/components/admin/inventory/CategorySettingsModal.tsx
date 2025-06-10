@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { EQUIPMENT_CATEGORIES, type EquipmentCategoryId } from "@/config/equipmentCategories";
 import { getEquipmentCategories, updateCategoryPricing, initializeCategoriesInDatabase } from "@/services/categoryService";
 import { useToast } from "@/hooks/use-toast";
+import PricingInputs from "./PricingInputs";
+import DeliveryInputs from "./DeliveryInputs";
+import SaveStatusIndicator from "./SaveStatusIndicator";
 
 interface CategorySettingsModalProps {
   isOpen: boolean;
@@ -45,7 +46,6 @@ const CategorySettingsModal = ({
     }
   }, [currentCategory]);
 
-  // Initialize categories in database on mount
   useEffect(() => {
     if (isOpen) {
       initializeCategoriesInDatabase();
@@ -136,82 +136,32 @@ const CategorySettingsModal = ({
           <DialogTitle>Category Settings - {categoryInfo.name}</DialogTitle>
           <DialogDescription>
             Configure pricing and delivery settings
-            {isSaving && <span className="text-blue-600"> • Saving...</span>}
-            {lastSaved && !isSaving && (
-              <span className="text-green-600"> • Last saved: {lastSaved.toLocaleTimeString()}</span>
-            )}
-            {saveError && (
-              <span className="text-red-600"> • Error: {saveError}</span>
-            )}
+            <SaveStatusIndicator 
+              isSaving={isSaving}
+              lastSaved={lastSaved}
+              saveError={saveError}
+            />
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="dailyRate">Daily Rate (R)</Label>
-              <Input
-                id="dailyRate"
-                type="number"
-                value={dailyRate}
-                onChange={(e) => setDailyRate(Number(e.target.value))}
-                onBlur={(e) => handleDailyRateChange(Number(e.target.value))}
-                className="text-center"
-                disabled={isSaving}
-              />
-            </div>
-            <div>
-              <Label htmlFor="weeklyRate">Weekly Rate (R)</Label>
-              <Input
-                id="weeklyRate"
-                type="number"
-                value={weeklyRate}
-                onChange={(e) => setWeeklyRate(Number(e.target.value))}
-                onBlur={(e) => handleWeeklyRateChange(Number(e.target.value))}
-                className="text-center"
-                disabled={isSaving}
-              />
-            </div>
-            <div>
-              <Label htmlFor="monthlyRate">Monthly Rate (R)</Label>
-              <Input
-                id="monthlyRate"
-                type="number"
-                value={monthlyRate}
-                onChange={(e) => setMonthlyRate(Number(e.target.value))}
-                onBlur={(e) => handleMonthlyRateChange(Number(e.target.value))}
-                className="text-center"
-                disabled={isSaving}
-              />
-            </div>
-          </div>
+          <PricingInputs
+            dailyRate={dailyRate}
+            weeklyRate={weeklyRate}
+            monthlyRate={monthlyRate}
+            onDailyRateChange={handleDailyRateChange}
+            onWeeklyRateChange={handleWeeklyRateChange}
+            onMonthlyRateChange={handleMonthlyRateChange}
+            isSaving={isSaving}
+          />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="baseFee">Base Delivery Fee (R)</Label>
-              <Input
-                id="baseFee"
-                type="number"
-                value={baseFee}
-                onChange={(e) => setBaseFee(Number(e.target.value))}
-                onBlur={(e) => handleBaseFeeChange(Number(e.target.value))}
-                className="text-center"
-                disabled={isSaving}
-              />
-            </div>
-            <div>
-              <Label htmlFor="crossBranchSurcharge">Cross-Branch Surcharge (R)</Label>
-              <Input
-                id="crossBranchSurcharge"
-                type="number"
-                value={crossBranchSurcharge}
-                onChange={(e) => setCrossBranchSurcharge(Number(e.target.value))}
-                onBlur={(e) => handleCrossBranchSurchargeChange(Number(e.target.value))}
-                className="text-center"
-                disabled={isSaving}
-              />
-            </div>
-          </div>
+          <DeliveryInputs
+            baseFee={baseFee}
+            crossBranchSurcharge={crossBranchSurcharge}
+            onBaseFeeChange={handleBaseFeeChange}
+            onCrossBranchSurchargeChange={handleCrossBranchSurchargeChange}
+            isSaving={isSaving}
+          />
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-xs text-blue-700">
