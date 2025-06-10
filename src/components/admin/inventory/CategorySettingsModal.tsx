@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EQUIPMENT_CATEGORIES, type EquipmentCategoryId } from "@/config/equipmentCategories";
@@ -30,6 +30,7 @@ const CategorySettingsModal = ({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
@@ -52,44 +53,70 @@ const CategorySettingsModal = ({
     }
   }, [isOpen]);
 
-  const autoSave = async (updates: any) => {
-    if (!category) return;
-    
-    setIsSaving(true);
-    setSaveError(null);
-    
-    try {
-      console.log('Attempting to save category pricing:', category, updates);
-      await updateCategoryPricing(category, updates);
-      onUpdate(category, updates);
-      setLastSaved(new Date());
-      
-      toast({
-        title: "Settings Saved Successfully",
-        description: "Category pricing has been updated and saved to database"
-      });
-      
-      console.log('Category pricing saved successfully');
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save category settings";
-      setSaveError(errorMessage);
-      
-      toast({
-        title: "Save Failed",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      
-      console.error('Failed to save category pricing:', error);
-    }
-    
-    setIsSaving(false);
+  const validateValue = (value: number): boolean => {
+    return !isNaN(value) && value >= 0 && isFinite(value);
   };
+
+  const debouncedSave = useCallback(async (updates: any) => {
+    if (!category) return;
+
+    // Clear any existing timeout
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+    }
+
+    // Set a new timeout for debounced save
+    const timeout = setTimeout(async () => {
+      // Validate all values before saving
+      const { pricing, delivery } = updates;
+      
+      if (!validateValue(pricing.dailyRate) || 
+          !validateValue(pricing.weeklyRate) || 
+          !validateValue(pricing.monthlyRate) ||
+          !validateValue(delivery.baseFee) ||
+          !validateValue(delivery.crossBranchSurcharge)) {
+        setSaveError("Invalid values. Please enter valid numbers.");
+        return;
+      }
+
+      setIsSaving(true);
+      setSaveError(null);
+      
+      try {
+        console.log('Attempting to save category pricing:', category, updates);
+        await updateCategoryPricing(category, updates);
+        onUpdate(category, updates);
+        setLastSaved(new Date());
+        
+        toast({
+          title: "Settings Saved Successfully",
+          description: "Category pricing has been updated and saved to database"
+        });
+        
+        console.log('Category pricing saved successfully');
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to save category settings";
+        setSaveError(errorMessage);
+        
+        toast({
+          title: "Save Failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        
+        console.error('Failed to save category pricing:', error);
+      }
+      
+      setIsSaving(false);
+    }, 500); // 500ms debounce
+
+    setSaveTimeout(timeout);
+  }, [category, onUpdate, toast, saveTimeout]);
 
   const handleDailyRateChange = (value: number) => {
     setDailyRate(value);
-    autoSave({
+    debouncedSave({
       pricing: { dailyRate: value, weeklyRate, monthlyRate },
       delivery: { baseFee, crossBranchSurcharge }
     });
@@ -97,7 +124,7 @@ const CategorySettingsModal = ({
 
   const handleWeeklyRateChange = (value: number) => {
     setWeeklyRate(value);
-    autoSave({
+    debouncedSave({
       pricing: { dailyRate, weeklyRate: value, monthlyRate },
       delivery: { baseFee, crossBranchSurcharge }
     });
@@ -105,7 +132,7 @@ const CategorySettingsModal = ({
 
   const handleMonthlyRateChange = (value: number) => {
     setMonthlyRate(value);
-    autoSave({
+    debouncedSave({
       pricing: { dailyRate, weeklyRate, monthlyRate: value },
       delivery: { baseFee, crossBranchSurcharge }
     });
@@ -113,7 +140,7 @@ const CategorySettingsModal = ({
 
   const handleBaseFeeChange = (value: number) => {
     setBaseFee(value);
-    autoSave({
+    debouncedSave({
       pricing: { dailyRate, weeklyRate, monthlyRate },
       delivery: { baseFee: value, crossBranchSurcharge }
     });
@@ -121,11 +148,20 @@ const CategorySettingsModal = ({
 
   const handleCrossBranchSurchargeChange = (value: number) => {
     setCrossBranchSurcharge(value);
-    autoSave({
+    debouncedSave({
       pricing: { dailyRate, weeklyRate, monthlyRate },
       delivery: { baseFee, crossBranchSurcharge: value }
     });
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [saveTimeout]);
 
   if (!category || !categoryInfo) return null;
 
@@ -165,7 +201,7 @@ const CategorySettingsModal = ({
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-xs text-blue-700">
-              💡 Changes are automatically saved when you finish editing each field. 
+              💡 Changes are automatically saved 500ms after you finish typing. 
               Updates will immediately reflect in Overview, Calendar, and Bookings tabs.
             </p>
           </div>
@@ -173,7 +209,7 @@ const CategorySettingsModal = ({
           {saveError && (
             <div className="bg-red-50 p-3 rounded-lg">
               <p className="text-xs text-red-700">
-                ❌ Save failed: {saveError}. Please try again.
+                ❌ Save failed: {saveError}. Please check your values and try again.
               </p>
             </div>
           )}
