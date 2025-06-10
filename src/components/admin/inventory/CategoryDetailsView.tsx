@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -7,11 +8,11 @@ import {
   addInventoryItem,
   updateInventoryItem,
   deleteInventoryItem,
-  createMaintenanceBlock,
-  generateICalForItem,
   checkInItem,
-  checkOutItem
-} from "@/services/bookingService";
+  checkOutItem,
+  generateNextItemName
+} from "@/services/inventoryService";
+import { createMaintenanceBlock, generateICalForItem } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
 import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type InventoryItem } from "@/config/equipmentCategories";
 import InventoryItemsList from "@/components/admin/inventory/InventoryItemsList";
@@ -22,7 +23,7 @@ interface CategoryDetailsViewProps {
   category: EquipmentCategoryId;
   branch: string;
   onBack: () => void;
-  onCreateBooking?: (item: InventoryItem) => void; // Add prop for creating booking
+  onCreateBooking?: (item: InventoryItem) => void;
 }
 
 const CategoryDetailsView = ({ 
@@ -43,17 +44,33 @@ const CategoryDetailsView = ({
   const filteredInventory = inventory.filter(item => item.branch === branch);
 
   const refreshInventory = () => {
-    setInventory(getInventoryByCategory(category));
+    const updatedInventory = getInventoryByCategory(category);
+    setInventory(updatedInventory);
+    
+    // Dispatch event to notify other components
+    window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
+      detail: { category, branch } 
+    }));
   };
+
+  // Listen for category pricing updates
+  useEffect(() => {
+    const handlePricingUpdate = () => {
+      refreshInventory();
+    };
+
+    window.addEventListener('categoryPricingUpdated', handlePricingUpdate);
+    return () => window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
+  }, []);
 
   const handleAddItem = async (formData: FormData) => {
     try {
-      const newItem = addInventoryItem({
-        name: generateItemName(category, branch),
+      const newItem = await addInventoryItem({
+        name: generateNextItemName(category, branch),
         category: category,
         branch: branch as any,
         serialNumber: formData.get('serialNumber') as string,
-        condition: 'excellent', // All items are excellent by default
+        condition: 'excellent',
         status: 'available',
         lastChecked: new Date().toISOString().split('T')[0],
         notes: formData.get('notes') as string || undefined
@@ -81,7 +98,7 @@ const CategoryDetailsView = ({
 
   const handleSaveItemChanges = async (itemId: string, updates: Partial<InventoryItem>) => {
     try {
-      updateInventoryItem(itemId, updates);
+      await updateInventoryItem(itemId, updates);
       refreshInventory();
       toast({
         title: "Item Updated",
@@ -96,19 +113,9 @@ const CategoryDetailsView = ({
     }
   };
 
-  const generateItemName = (categoryId: EquipmentCategoryId, branchId: string): string => {
-    const categoryName = categoryInfo?.name.replace(/\s+/g, '').replace(/[^\w]/g, '') || categoryId;
-    const branchName = branchId === 'hilton' ? 'Hilton' : 'Joburg';
-    const existingItems = inventory.filter(item => 
-      item.category === categoryId && item.branch === branchId
-    );
-    const nextNumber = existingItems.length + 1;
-    return `${categoryName} ${branchName} ${nextNumber}`;
-  };
-
   const handleDeleteItem = async (itemId: string) => {
     try {
-      deleteInventoryItem(itemId);
+      await deleteInventoryItem(itemId);
       refreshInventory();
       toast({
         title: "Item Deleted",
@@ -125,7 +132,7 @@ const CategoryDetailsView = ({
 
   const handleCheckIn = async (itemId: string) => {
     try {
-      checkInItem(itemId);
+      await checkInItem(itemId);
       refreshInventory();
       toast({
         title: "Item Checked In",
@@ -141,13 +148,11 @@ const CategoryDetailsView = ({
   };
 
   const handleCheckOut = async (item: InventoryItem) => {
-    // If there's a createBooking handler, use it to open booking modal
     if (onCreateBooking) {
       onCreateBooking(item);
     } else {
-      // Otherwise, just mark as checked out
       try {
-        checkOutItem(item.id);
+        await checkOutItem(item.id);
         refreshInventory();
         toast({
           title: "Item Checked Out",
@@ -253,7 +258,7 @@ const CategoryDetailsView = ({
         category={category}
         branch={branch}
         onAddItem={handleAddItem}
-        suggestedName={generateItemName(category, branch)}
+        suggestedName={generateNextItemName(category, branch)}
       />
 
       <EditInventoryItemModal

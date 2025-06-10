@@ -1,6 +1,7 @@
 
 import { InventoryItem } from "@/config/equipmentCategories";
 import { getInventoryStore, setInventoryStore, getBookingStore } from "./mockDataService";
+import { supabase } from "@/integrations/supabase/client";
 
 // Inventory management functions
 export const getInventory = () => getInventoryStore();
@@ -51,7 +52,7 @@ export const generateSerialNumber = (category: string, branch: string): string =
   return `${categoryAbbr}-${branchCode}-${String(nextNumber).padStart(3, '0')}`;
 };
 
-export const addInventoryItem = (item: Omit<InventoryItem, 'id'>) => {
+export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
   const inventory = getInventoryStore();
   
   // Generate unique ID and serial number if not provided
@@ -59,27 +60,75 @@ export const addInventoryItem = (item: Omit<InventoryItem, 'id'>) => {
     ...item,
     id: item.serialNumber || `${Date.now()}`,
     serialNumber: item.serialNumber || generateSerialNumber(item.category, item.branch),
-    condition: 'excellent', // All items are excellent by default
+    condition: item.condition || 'excellent',
     status: item.status || 'available'
   };
   
+  // Save to local store
   setInventoryStore([...inventory, newItem]);
+  
+  // Save to Supabase (create inventory_items table structure in background)
+  try {
+    const { error } = await supabase
+      .from('inventory_items')
+      .insert({
+        id: newItem.id,
+        name: newItem.name,
+        category: newItem.category,
+        branch: newItem.branch,
+        serial_number: newItem.serialNumber,
+        condition: newItem.condition,
+        status: newItem.status,
+        last_checked: newItem.lastChecked,
+        notes: newItem.notes,
+        purchase_date: newItem.purchaseDate
+      });
+    
+    if (error) {
+      console.error('Error saving to Supabase:', error);
+      // Continue with local storage for now
+    }
+  } catch (error) {
+    console.error('Supabase not available, using local storage:', error);
+  }
+  
   return newItem;
 };
 
-export const updateInventoryItem = (id: string, updates: Partial<InventoryItem>) => {
+export const updateInventoryItem = async (id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | null> => {
   const inventory = getInventoryStore();
   const index = inventory.findIndex(item => item.id === id);
   if (index !== -1) {
     const updatedInventory = [...inventory];
     updatedInventory[index] = { ...updatedInventory[index], ...updates };
     setInventoryStore(updatedInventory);
+    
+    // Update in Supabase
+    try {
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({
+          name: updates.name,
+          condition: updates.condition,
+          status: updates.status,
+          last_checked: updates.lastChecked,
+          notes: updates.notes
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error updating in Supabase:', error);
+      }
+    } catch (error) {
+      console.error('Supabase not available, using local storage:', error);
+    }
+    
     return updatedInventory[index];
   }
   return null;
 };
 
-export const deleteInventoryItem = (id: string) => {
+export const deleteInventoryItem = async (id: string): Promise<boolean> => {
   // Check if item is currently booked
   const bookings = getBookingStore();
   const hasActiveBooking = bookings.some(booking =>
@@ -97,13 +146,28 @@ export const deleteInventoryItem = (id: string) => {
     const updatedInventory = [...inventory];
     updatedInventory.splice(index, 1);
     setInventoryStore(updatedInventory);
+    
+    // Delete from Supabase
+    try {
+      const { error } = await supabase
+        .from('inventory_items')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting from Supabase:', error);
+      }
+    } catch (error) {
+      console.error('Supabase not available, using local storage:', error);
+    }
+    
     return true;
   }
   return false;
 };
 
 // Check-in/Check-out functionality
-export const checkInItem = (itemId: string) => {
+export const checkInItem = async (itemId: string) => {
   const inventory = getInventoryStore();
   const index = inventory.findIndex(item => item.id === itemId);
   if (index !== -1) {
@@ -112,10 +176,16 @@ export const checkInItem = (itemId: string) => {
     updatedInventory[index].currentBooking = undefined;
     updatedInventory[index].lastChecked = new Date().toISOString().split('T')[0];
     setInventoryStore(updatedInventory);
+    
+    // Update status in Supabase
+    await updateInventoryItem(itemId, {
+      status: 'available',
+      lastChecked: new Date().toISOString().split('T')[0]
+    });
   }
 };
 
-export const checkOutItem = (itemId: string) => {
+export const checkOutItem = async (itemId: string) => {
   const inventory = getInventoryStore();
   const index = inventory.findIndex(item => item.id === itemId);
   if (index !== -1) {
@@ -123,6 +193,12 @@ export const checkOutItem = (itemId: string) => {
     updatedInventory[index].status = 'booked';
     updatedInventory[index].lastChecked = new Date().toISOString().split('T')[0];
     setInventoryStore(updatedInventory);
+    
+    // Update status in Supabase
+    await updateInventoryItem(itemId, {
+      status: 'booked',
+      lastChecked: new Date().toISOString().split('T')[0]
+    });
   }
 };
 

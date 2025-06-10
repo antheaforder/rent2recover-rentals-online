@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,8 @@ import {
   Wrench
 } from "lucide-react";
 import { EQUIPMENT_CATEGORIES, BRANCHES } from "@/config/equipmentCategories";
+import { getInventoryByBranch, getInventoryByCategory } from "@/services/inventoryService";
+import { getEquipmentCategories } from "@/services/categoryService";
 
 interface DashboardOverviewProps {
   branch: string;
@@ -24,15 +25,43 @@ interface DashboardOverviewProps {
 const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
   const [viewMode, setViewMode] = useState<'total' | 'available'>('available');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Mock data with all 13 categories
-  const categoryStats = EQUIPMENT_CATEGORIES.map(category => ({
-    ...category,
-    total: Math.floor(Math.random() * 50) + 10,
-    available: Math.floor(Math.random() * 30) + 5,
-    booked: Math.floor(Math.random() * 15) + 2,
-    maintenance: Math.floor(Math.random() * 5) + 1
-  }));
+  // Listen for inventory and pricing updates
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    const handlePricingUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    window.addEventListener('categoryPricingUpdated', handlePricingUpdate);
+
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
+    };
+  }, []);
+
+  // Real-time data calculation
+  const categoryStats = EQUIPMENT_CATEGORIES.map(category => {
+    const allCategoryInventory = getInventoryByCategory(category.id);
+    const branchInventory = allCategoryInventory.filter(item => item.branch === branch);
+    const categories = getEquipmentCategories();
+    const categoryData = categories.find(c => c.id === category.id);
+    
+    return {
+      ...category,
+      total: branchInventory.length,
+      available: branchInventory.filter(item => item.status === 'available').length,
+      booked: branchInventory.filter(item => item.status === 'booked').length,
+      maintenance: branchInventory.filter(item => item.status === 'maintenance').length,
+      pricing: categoryData?.pricing || { dailyRate: 0, weeklyRate: 0, monthlyRate: 0 }
+    };
+  });
 
   const stats = {
     bookingsToday: 12,
@@ -212,6 +241,14 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
                     <span className="text-gray-500">Maintenance:</span>
                     <span className="font-medium ml-1 text-orange-600">{category.maintenance}</span>
                   </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Badge variant="outline">
+                    Daily: R{category.pricing.dailyRate || 0}
+                  </Badge>
+                  <Badge variant="outline">
+                    Weekly: R{category.pricing.weeklyRate || 0}
+                  </Badge>
                 </div>
               </div>
             ))}

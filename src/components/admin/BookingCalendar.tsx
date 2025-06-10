@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import CalendarFilters from "./calendar/CalendarFilters";
 import WeekView from "./calendar/WeekView";
@@ -12,6 +12,7 @@ import {
   type BookingBlock
 } from "@/config/equipmentCategories";
 import { MOCK_INVENTORY_ITEMS, MOCK_BOOKINGS } from "@/config/mockData";
+import { getInventory } from "@/services/inventoryService";
 
 interface BookingCalendarProps {
   branch: string;
@@ -28,9 +29,32 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     bookings: BookingBlock[];
   } | null>(null);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Listen for inventory updates
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    const handlePricingUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    window.addEventListener('categoryPricingUpdated', handlePricingUpdate);
+
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
+    };
+  }, []);
+
+  // Get real-time inventory data
+  const allInventoryItems = getInventory();
 
   // Filter inventory items based on current filters
-  const filteredInventoryItems = MOCK_INVENTORY_ITEMS.filter(item => {
+  const filteredInventoryItems = allInventoryItems.filter(item => {
     const branchMatch = branchFilter === 'all' || item.branch === branchFilter || showCrossBranch;
     const categoryMatch = equipmentFilter === 'all' || item.category === equipmentFilter;
     return branchMatch && categoryMatch;
@@ -63,7 +87,7 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
     if (itemId === 'all') {
       toast.success("Generating iCal feed for all equipment...");
     } else {
-      const item = MOCK_INVENTORY_ITEMS.find(i => i.id === itemId);
+      const item = allInventoryItems.find(i => i.id === itemId);
       toast.success(`Generating iCal feed for ${item?.name || 'equipment'}...`);
     }
   };

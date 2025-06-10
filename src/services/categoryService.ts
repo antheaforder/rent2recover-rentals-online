@@ -1,11 +1,12 @@
 
 import { EquipmentCategory, EquipmentCategoryId } from "@/config/equipmentCategories";
 import { getCategoriesStore, setCategoriesStore } from "./mockDataService";
+import { supabase } from "@/integrations/supabase/client";
 
 // Equipment Categories Management
 export const getEquipmentCategories = (): EquipmentCategory[] => getCategoriesStore();
 
-export const updateCategoryPricing = (categoryId: EquipmentCategoryId, updates: { pricing: any; delivery: any }) => {
+export const updateCategoryPricing = async (categoryId: EquipmentCategoryId, updates: { pricing: any; delivery: any }) => {
   const categories = getCategoriesStore();
   const index = categories.findIndex(cat => cat.id === categoryId);
   if (index !== -1) {
@@ -15,11 +16,34 @@ export const updateCategoryPricing = (categoryId: EquipmentCategoryId, updates: 
       pricing: {
         ...updatedCategories[index].pricing,
         ...updates.pricing,
-        dailyRate: updates.pricing.dailyRate || 0 // Add daily rate support
+        dailyRate: updates.pricing.dailyRate || 0
       },
       delivery: updates.delivery
     };
     setCategoriesStore(updatedCategories);
+    
+    // Save to Supabase
+    try {
+      const { error } = await supabase
+        .from('equipment_categories')
+        .upsert({
+          id: categoryId,
+          pricing: updatedCategories[index].pricing,
+          delivery: updatedCategories[index].delivery,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Error saving category pricing to Supabase:', error);
+      }
+    } catch (error) {
+      console.error('Supabase not available, using local storage:', error);
+    }
+    
+    // Trigger refresh events for other components
+    window.dispatchEvent(new CustomEvent('categoryPricingUpdated', { 
+      detail: { categoryId, updates } 
+    }));
   }
 };
 
