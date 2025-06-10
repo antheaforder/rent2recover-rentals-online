@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { createCustomer, updateCustomer, type Customer } from '@/services/userService';
+import { createCustomer, updateCustomer, Customer } from '@/services/userService';
 
 interface CustomerModalProps {
   isOpen: boolean;
@@ -19,7 +19,7 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,13 +30,13 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
       setFullName(customer.full_name);
       setEmail(customer.email);
       setPhone(customer.phone);
-      setDeliveryAddress(customer.delivery_address);
+      setAddress(customer.delivery_address);
       setNotes(customer.notes || '');
     } else {
       setFullName('');
       setEmail('');
       setPhone('');
-      setDeliveryAddress('');
+      setAddress('');
       setNotes('');
     }
   }, [customer, isOpen]);
@@ -46,51 +46,37 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
     setLoading(true);
 
     try {
+      const customerData = {
+        full_name: fullName,
+        email,
+        phone,
+        delivery_address: address,
+        notes,
+        user_id: null,
+        total_bookings: customer?.total_bookings || 0
+      };
+
+      let result;
       if (customer) {
-        // Update existing customer
-        const result = await updateCustomer(customer.id, {
-          full_name: fullName,
-          email,
-          phone,
-          delivery_address: deliveryAddress,
-          notes: notes || null
-        });
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-
-        toast({
-          title: "Success",
-          description: "Customer updated successfully"
-        });
+        result = await updateCustomer(customer.id, customerData);
       } else {
-        // Create new customer
-        const result = await createCustomer({
-          user_id: null,
-          full_name: fullName,
-          email,
-          phone,
-          delivery_address: deliveryAddress,
-          notes: notes || null,
-          total_bookings: 0
-        });
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-
-        toast({
-          title: "Success",
-          description: "Customer created successfully"
-        });
+        result = await createCustomer(customerData);
       }
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      toast({
+        title: "Success",
+        description: customer ? "Customer updated successfully" : "Customer created successfully"
+      });
 
       onSuccess();
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive"
       });
     }
@@ -103,7 +89,7 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {customer ? 'Edit Customer' : 'Create New Customer'}
+            {customer ? 'Edit Customer' : 'Add New Customer'}
           </DialogTitle>
         </DialogHeader>
         
@@ -133,6 +119,7 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
             <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
+              type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
@@ -140,11 +127,11 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="deliveryAddress">Delivery Address</Label>
-            <Input
-              id="deliveryAddress"
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
+            <Label htmlFor="address">Delivery Address</Label>
+            <Textarea
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
               required
             />
           </div>
@@ -155,8 +142,7 @@ const CustomerModal = ({ isOpen, onClose, onSuccess, customer }: CustomerModalPr
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Special instructions, medical notes, preferences..."
-              rows={3}
+              placeholder="Optional customer notes"
             />
           </div>
 

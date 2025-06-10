@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { updateProfile, type Profile } from '@/services/userService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -20,10 +21,9 @@ const UserProfileModal = ({ isOpen, onClose, onSuccess, profile }: UserProfileMo
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('customer');
+  const [role, setRole] = useState('super_admin');
   const [loading, setLoading] = useState(false);
 
-  const { signUp } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -62,7 +62,7 @@ const UserProfileModal = ({ isOpen, onClose, onSuccess, profile }: UserProfileMo
           description: "User profile updated successfully"
         });
       } else {
-        // Create new user
+        // Create new admin user
         if (!password) {
           toast({
             title: "Error",
@@ -73,15 +73,32 @@ const UserProfileModal = ({ isOpen, onClose, onSuccess, profile }: UserProfileMo
           return;
         }
 
-        const result = await signUp(email, password, fullName, role);
-        
-        if (result.error) {
-          throw new Error(result.error);
-        }
+        // 1. Create the user with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, role: role }
+          }
+        });
+
+        if (authError) throw authError;
+
+        // 2. Manually create the admin_users record
+        const { error: adminError } = await supabase.from('admin_users').insert([
+          {
+            email: email,
+            username: fullName,
+            role: role === 'super_admin' ? 'super-admin' : 'admin',
+            password_hash: 'managed_by_supabase_auth' // Placeholder since we use Auth
+          }
+        ]);
+
+        if (adminError) throw adminError;
 
         toast({
-          title: "Success",
-          description: "New user created successfully"
+          title: "Success", 
+          description: "New admin user created successfully"
         });
       }
 
@@ -102,7 +119,7 @@ const UserProfileModal = ({ isOpen, onClose, onSuccess, profile }: UserProfileMo
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {profile ? 'Edit User Profile' : 'Create New User'}
+            {profile ? 'Edit User Profile' : 'Create New Admin User'}
           </DialogTitle>
         </DialogHeader>
         

@@ -151,7 +151,7 @@ const NewUserManagement = () => {
                   <p className="text-xs text-blue-700">{currentUser.email}</p>
                 </div>
                 <Badge variant="default" className="ml-auto">
-                  {currentUser.role.replace('_', ' ')}
+                  {currentUser.role.replace('_', ' ').replace('-', ' ')}
                 </Badge>
               </div>
               <div className="flex gap-2">

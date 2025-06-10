@@ -28,22 +28,45 @@ export const useAuth = () => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch user profile
+          // Check if user exists in customer_users table (for customers)
           setTimeout(async () => {
             try {
-              const { data: profileData, error } = await supabase
-                .from('profiles')
+              const { data: customerData } = await supabase
+                .from('customer_users')
                 .select('*')
-                .eq('id', session.user.id)
+                .eq('email', session.user.email!)
                 .single();
               
-              if (error && error.code !== 'PGRST116') {
-                console.error('Error fetching profile:', error);
-              } else if (profileData) {
-                setProfile(profileData);
+              if (customerData) {
+                setProfile({
+                  id: customerData.id,
+                  email: customerData.email,
+                  full_name: customerData.full_name,
+                  role: 'customer',
+                  created_at: customerData.created_at,
+                  updated_at: customerData.updated_at,
+                });
+              } else {
+                // Check admin_users table
+                const { data: adminData } = await supabase
+                  .from('admin_users')
+                  .select('*')
+                  .eq('email', session.user.email!)
+                  .single();
+                
+                if (adminData) {
+                  setProfile({
+                    id: adminData.id,
+                    email: adminData.email,
+                    full_name: adminData.username, // Use username as full_name for admin
+                    role: adminData.role,
+                    created_at: adminData.created_at,
+                    updated_at: adminData.updated_at,
+                  });
+                }
               }
             } catch (error) {
-              console.error('Error in profile fetch:', error);
+              console.error('Error fetching profile:', error);
             }
           }, 0);
         } else {
@@ -78,6 +101,27 @@ export const useAuth = () => {
       });
 
       if (error) throw error;
+
+      // Create profile record based on role
+      if (role === 'super_admin') {
+        await supabase
+          .from('admin_users')
+          .insert([{
+            email,
+            username: fullName,
+            role: 'super-admin',
+            password_hash: 'managed_by_auth' // Placeholder since auth handles passwords
+          }]);
+      } else {
+        await supabase
+          .from('customer_users')
+          .insert([{
+            email,
+            full_name: fullName,
+            phone: '',
+            delivery_address: ''
+          }]);
+      }
 
       toast({
         title: "Account Created",
@@ -152,22 +196,40 @@ export const useAuth = () => {
     if (!user) return { error: 'No user logged in' };
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+      let result;
+      
+      if (profile?.role === 'super_admin') {
+        result = await supabase
+          .from('admin_users')
+          .update({
+            username: updates.full_name || undefined,
+            email: updates.email || undefined,
+            role: updates.role || undefined
+          })
+          .eq('id', profile.id)
+          .select();
+      } else {
+        result = await supabase
+          .from('customer_users')
+          .update({
+            full_name: updates.full_name || undefined,
+            email: updates.email || undefined
+          })
+          .eq('id', profile.id)
+          .select();
+      }
 
-      if (error) throw error;
+      if (result.error) throw result.error;
 
-      setProfile(data);
+      // Update local state
+      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated"
       });
 
-      return { data, error: null };
+      return { data: true, error: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       toast({
@@ -215,6 +277,6 @@ export const useAuth = () => {
     updateProfile,
     changePassword,
     isAuthenticated: !!user,
-    isSuperAdmin: profile?.role === 'super_admin'
+    isSuperAdmin: profile?.role === 'super_admin' || profile?.role === 'super-admin'
   };
 };
