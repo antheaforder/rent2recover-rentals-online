@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import { 
   getInventoryByBranch,
-  getEquipmentCategories
+  getInventoryByCategory
 } from "@/services/inventoryService";
 import { 
+  getEquipmentCategories,
   updateCategoryPricing
 } from "@/services/categoryService";
 import { type EquipmentCategoryId } from "@/config/equipmentCategories";
