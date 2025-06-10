@@ -63,7 +63,7 @@ export const useInventoryModals = (onRefresh: () => void) => {
 
   const handleSaveItem = async (itemData: any) => {
     try {
-      console.log('Saving inventory item:', itemData);
+      console.log('useInventoryModals: Saving inventory item:', itemData);
       
       if (modalMode === 'add') {
         const newItem = await addInventoryItem({
@@ -78,7 +78,7 @@ export const useInventoryModals = (onRefresh: () => void) => {
           purchaseDate: itemData.purchaseDate
         });
         
-        console.log('Item saved successfully:', newItem);
+        console.log('useInventoryModals: Item saved successfully:', newItem);
         
         toast({
           title: "Item Added Successfully",
@@ -90,7 +90,7 @@ export const useInventoryModals = (onRefresh: () => void) => {
       }
       setIsItemModalOpen(false);
     } catch (error) {
-      console.error('Failed to save item:', error);
+      console.error('useInventoryModals: Failed to save item:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save item to database",

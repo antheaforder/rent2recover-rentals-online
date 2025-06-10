@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,16 +55,28 @@ const CategoryDetailsView = ({
 
   // Listen for category pricing updates
   useEffect(() => {
+    const handleInventoryUpdate = () => {
+      console.log('Received inventory update event, refreshing...');
+      refreshInventory();
+    };
+
     const handlePricingUpdate = () => {
       refreshInventory();
     };
 
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
     window.addEventListener('categoryPricingUpdated', handlePricingUpdate);
-    return () => window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
-  }, []);
+    
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
+    };
+  }, [category, branch]);
 
   const handleAddItem = async (formData: FormData) => {
     try {
+      console.log('CategoryDetailsView: Adding item with formData');
+      
       const newItem = await addInventoryItem({
         name: generateNextItemName(category, branch),
         category: category,
@@ -77,16 +88,20 @@ const CategoryDetailsView = ({
         notes: formData.get('notes') as string || undefined
       });
       
+      console.log('CategoryDetailsView: Item added successfully:', newItem);
+      
       refreshInventory();
       setIsAddModalOpen(false);
+      
       toast({
         title: "Item Added Successfully",
         description: `${newItem.name} has been added to inventory and saved to database`
       });
     } catch (error) {
+      console.error('CategoryDetailsView: Failed to add item:', error);
       toast({
         title: "Error",
-        description: "Failed to add item to inventory",
+        description: error instanceof Error ? error.message : "Failed to add item to inventory",
         variant: "destructive"
       });
     }

@@ -1,3 +1,4 @@
+
 import { InventoryItem } from "@/config/equipmentCategories";
 import { getInventoryStore, setInventoryStore, getBookingStore } from "./mockDataService";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,19 +53,32 @@ export const generateSerialNumber = (category: string, branch: string): string =
 };
 
 export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
-  console.log('Adding inventory item:', item);
+  console.log('Starting addInventoryItem with:', item);
   
-  // Generate unique ID and serial number if not provided
+  // Generate unique ID and ensure all required fields are present
   const newItem: InventoryItem = {
     ...item,
     id: item.serialNumber || `${Date.now()}`,
     serialNumber: item.serialNumber || generateSerialNumber(item.category, item.branch),
     condition: item.condition || 'excellent',
-    status: item.status || 'available'
+    status: item.status || 'available',
+    lastChecked: item.lastChecked || new Date().toISOString().split('T')[0],
+    notes: item.notes || ''
   };
   
+  console.log('Prepared item for saving:', newItem);
+  
   try {
-    // Save to Supabase first
+    // Check authentication status
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      throw new Error('User must be authenticated to add inventory items');
+    }
+    
+    console.log('User authenticated:', user.id);
+    
+    // Save to Supabase with explicit field mapping
     const { data, error } = await supabase
       .from('inventory_items')
       .insert({
@@ -76,14 +90,14 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
         condition: newItem.condition,
         status: newItem.status,
         last_checked: newItem.lastChecked,
-        notes: newItem.notes,
-        purchase_date: newItem.purchaseDate
+        notes: newItem.notes || null,
+        purchase_date: newItem.purchaseDate || null
       })
       .select()
       .single();
     
     if (error) {
-      console.error('Error saving to Supabase:', error);
+      console.error('Supabase insert error:', error);
       throw new Error(`Failed to save item to database: ${error.message}`);
     }
     
@@ -91,12 +105,17 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
     
     // Update local store after successful save
     const inventory = getInventoryStore();
-    setInventoryStore([...inventory, newItem]);
+    const updatedInventory = [...inventory, newItem];
+    setInventoryStore(updatedInventory);
+    
+    console.log('Updated local inventory store');
     
     // Trigger refresh events for other components
     window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
       detail: { category: newItem.category, branch: newItem.branch } 
     }));
+    
+    console.log('Dispatched inventoryUpdated event');
     
     return newItem;
     

@@ -37,6 +37,7 @@ const EquipmentItemModal = ({
     lastChecked: new Date().toISOString().split('T')[0],
     notes: ''
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
 
@@ -95,14 +96,30 @@ const EquipmentItemModal = ({
     }
   }, [formData.branch, mode, isOpen, category]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      ...formData,
-      category,
-      condition: 'excellent', // All items are excellent by default
-      purchaseDate: mode === 'add' ? new Date().toISOString().split('T')[0] : editItem?.purchaseDate
-    });
+    
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    
+    try {
+      console.log('Submitting form data:', formData);
+      
+      await onSave({
+        ...formData,
+        category,
+        condition: 'excellent', // All items are excellent by default
+        purchaseDate: mode === 'add' ? new Date().toISOString().split('T')[0] : editItem?.purchaseDate
+      });
+      
+      console.log('Item saved successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error saving item:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleBranchChange = (newBranch: string) => {
@@ -135,6 +152,7 @@ const EquipmentItemModal = ({
                 disabled={mode === 'add'}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 className={mode === 'add' ? 'bg-gray-50' : ''}
+                required
               />
               {mode === 'add' && (
                 <p className="text-xs text-gray-500">Auto-generated: {categoryInfo?.name.replace(/\s+/g, '')} {BRANCHES.find(b => b.id === formData.branch)?.name.split(' ')[0]} #</p>
@@ -161,7 +179,7 @@ const EquipmentItemModal = ({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="branch">Branch</Label>
-              <Select value={formData.branch} onValueChange={handleBranchChange}>
+              <Select value={formData.branch} onValueChange={handleBranchChange} disabled={isSaving}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -177,7 +195,7 @@ const EquipmentItemModal = ({
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))} disabled={isSaving}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -197,6 +215,7 @@ const EquipmentItemModal = ({
               type="date"
               value={formData.lastChecked}
               onChange={(e) => setFormData(prev => ({ ...prev, lastChecked: e.target.value }))}
+              disabled={isSaving}
             />
           </div>
 
@@ -208,15 +227,16 @@ const EquipmentItemModal = ({
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Additional notes for admin reference..."
               rows={3}
+              disabled={isSaving}
             />
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button type="submit">
-              {mode === 'add' ? 'Add Item' : 'Save Changes'}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : (mode === 'add' ? 'Add Item' : 'Save Changes')}
             </Button>
           </div>
         </form>
