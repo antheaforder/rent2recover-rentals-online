@@ -167,6 +167,78 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_categories: {
+        Row: {
+          created_at: string
+          delivery: Json
+          id: string
+          name: string
+          pricing: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery?: Json
+          id: string
+          name: string
+          pricing?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery?: Json
+          id?: string
+          name?: string
+          pricing?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          branch: string
+          category: string
+          condition: string
+          created_at: string
+          id: string
+          last_checked: string | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          serial_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          branch: string
+          category: string
+          condition?: string
+          created_at?: string
+          id: string
+          last_checked?: string | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          serial_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          branch?: string
+          category?: string
+          condition?: string
+          created_at?: string
+          id?: string
+          last_checked?: string | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          serial_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
