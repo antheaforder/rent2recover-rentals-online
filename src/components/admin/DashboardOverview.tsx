@@ -30,10 +30,12 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
   // Listen for inventory and pricing updates
   useEffect(() => {
     const handleInventoryUpdate = () => {
+      console.log('Dashboard: Inventory updated - refreshing overview');
       setRefreshKey(prev => prev + 1);
     };
 
     const handlePricingUpdate = () => {
+      console.log('Dashboard: Category pricing updated - refreshing overview');
       setRefreshKey(prev => prev + 1);
     };
 
@@ -110,7 +112,7 @@ const DashboardOverview = ({ branch }: DashboardOverviewProps) => {
   const currentBranch = BRANCHES.find(b => b.id === branch);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" key={refreshKey}>
       {/* Branch Info & Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

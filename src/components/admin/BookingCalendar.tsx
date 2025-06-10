@@ -11,7 +11,7 @@ import {
   type InventoryItem,
   type BookingBlock
 } from "@/config/equipmentCategories";
-import { MOCK_INVENTORY_ITEMS, MOCK_BOOKINGS } from "@/config/mockData";
+import { MOCK_BOOKINGS } from "@/config/mockData";
 import { getInventory } from "@/services/inventoryService";
 
 interface BookingCalendarProps {
@@ -34,10 +34,12 @@ const BookingCalendar = ({ branch }: BookingCalendarProps) => {
   // Listen for inventory updates
   useEffect(() => {
     const handleInventoryUpdate = () => {
+      console.log('Calendar: Inventory updated - refreshing calendar data');
       setRefreshKey(prev => prev + 1);
     };
 
     const handlePricingUpdate = () => {
+      console.log('Calendar: Category pricing updated - refreshing calendar data');
       setRefreshKey(prev => prev + 1);
     };
 

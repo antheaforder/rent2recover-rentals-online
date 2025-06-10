@@ -14,12 +14,14 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import { 
-  getInventoryByBranch, 
-  getEquipmentCategories,
-  updateCategoryPricing,
+  getInventoryByBranch,
   addInventoryItem,
   updateInventoryItem
-} from "@/services/bookingService";
+} from "@/services/inventoryService";
+import { 
+  getEquipmentCategories,
+  updateCategoryPricing
+} from "@/services/categoryService";
 import { useToast } from "@/hooks/use-toast";
 import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type EquipmentCategory } from "@/config/equipmentCategories";
 import CategoryDetailsView from "@/components/admin/inventory/CategoryDetailsView";
@@ -46,11 +48,22 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   // Listen for inventory updates to refresh counts
   useEffect(() => {
     const handleInventoryUpdate = () => {
+      console.log('Inventory updated - refreshing counts');
+      setInventoryRefreshKey(prev => prev + 1);
+    };
+
+    const handlePricingUpdate = () => {
+      console.log('Category pricing updated - refreshing display');
       setInventoryRefreshKey(prev => prev + 1);
     };
 
     window.addEventListener('inventoryUpdated', handleInventoryUpdate);
-    return () => window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+    window.addEventListener('categoryPricingUpdated', handlePricingUpdate);
+    
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('categoryPricingUpdated', handlePricingUpdate);
+    };
   }, []);
 
   const getCategoryInventoryCount = (categoryId: EquipmentCategoryId, branchId: string) => {
@@ -83,19 +96,25 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 
   const handleUpdateCategory = async (categoryId: EquipmentCategoryId, updates: Partial<EquipmentCategory>) => {
     try {
-      updateCategoryPricing(categoryId, {
+      console.log('Updating category pricing:', categoryId, updates);
+      await updateCategoryPricing(categoryId, {
         pricing: updates.pricing,
         delivery: updates.delivery
       });
       setIsCategoryModalOpen(false);
+      
+      // Force refresh to show updated pricing
+      setInventoryRefreshKey(prev => prev + 1);
+      
       toast({
         title: "Category Updated Successfully",
         description: "Category settings have been saved and applied across all modules"
       });
     } catch (error) {
+      console.error('Failed to update category:', error);
       toast({
         title: "Error",
-        description: "Failed to update category settings",
+        description: error instanceof Error ? error.message : "Failed to update category settings",
         variant: "destructive"
       });
     }
@@ -103,18 +122,22 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 
   const handleSaveItem = async (itemData: any) => {
     try {
+      console.log('Saving inventory item:', itemData);
+      
       if (modalMode === 'add') {
-        await addInventoryItem({
+        const newItem = await addInventoryItem({
           name: itemData.name,
           category: itemData.category,
           branch: itemData.branch,
           serialNumber: itemData.serialNumber,
-          condition: itemData.condition,
-          status: itemData.status,
+          condition: itemData.condition || 'excellent',
+          status: itemData.status || 'available',
           lastChecked: itemData.lastChecked,
           notes: itemData.notes,
           purchaseDate: itemData.purchaseDate
         });
+        
+        console.log('Item saved successfully:', newItem);
         
         toast({
           title: "Item Added Successfully",
@@ -126,6 +149,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
       }
       setIsItemModalOpen(false);
     } catch (error) {
+      console.error('Failed to save item:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save item to database",
@@ -213,6 +237,9 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
                       </div>
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline">
+                          Daily: R{categoryData?.pricing.dailyRate || 0}
+                        </Badge>
+                        <Badge variant="outline">
                           Weekly: R{categoryData?.pricing.weeklyRate || 0}
                         </Badge>
                         <Badge variant="outline">
@@ -258,7 +285,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
         })}
       </div>
 
-      {/* Category Manager Modal - Use CategorySettingsModal instead */}
+      {/* Category Settings Modal */}
       <CategorySettingsModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
