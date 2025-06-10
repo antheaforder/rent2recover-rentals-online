@@ -7,6 +7,11 @@ import { useState } from "react";
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
+  const handleAdminLoginClick = () => {
+    console.log('Admin Login button clicked - navigating to /admin/login');
+    window.location.href = '/admin/login';
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
@@ -17,9 +22,9 @@ const Index = () => {
             <Link to="/customer">
               <Button variant="outline">Customer Dashboard</Button>
             </Link>
-            <Link to="/admin/login">
-              <Button>Admin Login</Button>
-            </Link>
+            <Button onClick={handleAdminLoginClick}>
+              Admin Login
+            </Button>
           </div>
         </div>
       </header>
