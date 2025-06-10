@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EQUIPMENT_CATEGORIES, type EquipmentCategoryId } from "@/config/equipmentCategories";
-import { getEquipmentCategories, updateCategoryPricing } from "@/services/categoryService";
+import { getEquipmentCategories, updateCategoryPricing, initializeCategoriesInDatabase } from "@/services/categoryService";
 import { useToast } from "@/hooks/use-toast";
 
 interface CategorySettingsModalProps {
@@ -28,6 +28,7 @@ const CategorySettingsModal = ({
   const [crossBranchSurcharge, setCrossBranchSurcharge] = useState(150);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
@@ -44,25 +45,45 @@ const CategorySettingsModal = ({
     }
   }, [currentCategory]);
 
+  // Initialize categories in database on mount
+  useEffect(() => {
+    if (isOpen) {
+      initializeCategoriesInDatabase();
+    }
+  }, [isOpen]);
+
   const autoSave = async (updates: any) => {
     if (!category) return;
     
     setIsSaving(true);
+    setSaveError(null);
+    
     try {
+      console.log('Attempting to save category pricing:', category, updates);
       await updateCategoryPricing(category, updates);
       onUpdate(category, updates);
       setLastSaved(new Date());
+      
       toast({
         title: "Settings Saved Successfully",
-        description: "Category pricing has been updated across all modules"
+        description: "Category pricing has been updated and saved to database"
       });
+      
+      console.log('Category pricing saved successfully');
+      
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save category settings";
+      setSaveError(errorMessage);
+      
       toast({
         title: "Save Failed",
-        description: "Failed to save category settings to database",
+        description: errorMessage,
         variant: "destructive"
       });
+      
+      console.error('Failed to save category pricing:', error);
     }
+    
     setIsSaving(false);
   };
 
@@ -119,6 +140,9 @@ const CategorySettingsModal = ({
             {lastSaved && !isSaving && (
               <span className="text-green-600"> • Last saved: {lastSaved.toLocaleTimeString()}</span>
             )}
+            {saveError && (
+              <span className="text-red-600"> • Error: {saveError}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
@@ -133,6 +157,7 @@ const CategorySettingsModal = ({
                 onChange={(e) => setDailyRate(Number(e.target.value))}
                 onBlur={(e) => handleDailyRateChange(Number(e.target.value))}
                 className="text-center"
+                disabled={isSaving}
               />
             </div>
             <div>
@@ -144,6 +169,7 @@ const CategorySettingsModal = ({
                 onChange={(e) => setWeeklyRate(Number(e.target.value))}
                 onBlur={(e) => handleWeeklyRateChange(Number(e.target.value))}
                 className="text-center"
+                disabled={isSaving}
               />
             </div>
             <div>
@@ -155,6 +181,7 @@ const CategorySettingsModal = ({
                 onChange={(e) => setMonthlyRate(Number(e.target.value))}
                 onBlur={(e) => handleMonthlyRateChange(Number(e.target.value))}
                 className="text-center"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -169,6 +196,7 @@ const CategorySettingsModal = ({
                 onChange={(e) => setBaseFee(Number(e.target.value))}
                 onBlur={(e) => handleBaseFeeChange(Number(e.target.value))}
                 className="text-center"
+                disabled={isSaving}
               />
             </div>
             <div>
@@ -180,6 +208,7 @@ const CategorySettingsModal = ({
                 onChange={(e) => setCrossBranchSurcharge(Number(e.target.value))}
                 onBlur={(e) => handleCrossBranchSurchargeChange(Number(e.target.value))}
                 className="text-center"
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -191,8 +220,18 @@ const CategorySettingsModal = ({
             </p>
           </div>
 
+          {saveError && (
+            <div className="bg-red-50 p-3 rounded-lg">
+              <p className="text-xs text-red-700">
+                ❌ Save failed: {saveError}. Please try again.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end">
-            <Button onClick={onClose}>Done</Button>
+            <Button onClick={onClose} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Done'}
+            </Button>
           </div>
         </div>
       </DialogContent>

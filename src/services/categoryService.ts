@@ -1,4 +1,3 @@
-
 import { EquipmentCategory, EquipmentCategoryId } from "@/config/equipmentCategories";
 import { getCategoriesStore, setCategoriesStore } from "./mockDataService";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,27 +23,90 @@ export const updateCategoryPricing = async (categoryId: EquipmentCategoryId, upd
     
     // Save to Supabase with proper error handling
     try {
-      // Use any type to bypass TypeScript errors until types are regenerated
-      const { error } = await (supabase as any)
-        .from('equipment_categories')
-        .upsert({
-          id: categoryId,
-          pricing: updatedCategories[index].pricing,
-          delivery: updatedCategories[index].delivery,
-          updated_at: new Date().toISOString()
-        });
+      console.log('Saving category pricing to Supabase:', categoryId, updates);
       
-      if (error) {
-        console.error('Error saving category pricing to Supabase:', error);
+      // First, check if the category exists
+      const { data: existingCategory } = await supabase
+        .from('equipment_categories')
+        .select('id')
+        .eq('id', categoryId)
+        .single();
+      
+      if (existingCategory) {
+        // Update existing category
+        const { error } = await supabase
+          .from('equipment_categories')
+          .update({
+            pricing: updatedCategories[index].pricing,
+            delivery: updatedCategories[index].delivery,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', categoryId);
+        
+        if (error) {
+          console.error('Error updating category pricing in Supabase:', error);
+          throw error;
+        }
+      } else {
+        // Insert new category
+        const { error } = await supabase
+          .from('equipment_categories')
+          .insert({
+            id: categoryId,
+            name: updatedCategories[index].name,
+            pricing: updatedCategories[index].pricing,
+            delivery: updatedCategories[index].delivery
+          });
+        
+        if (error) {
+          console.error('Error inserting category pricing in Supabase:', error);
+          throw error;
+        }
       }
+      
+      console.log('Category pricing saved successfully to Supabase');
+      
     } catch (error) {
-      console.error('Supabase operation failed, using local storage:', error);
+      console.error('Supabase operation failed:', error);
+      throw error; // Re-throw to let the calling component handle the error
     }
     
     // Trigger refresh events for other components
     window.dispatchEvent(new CustomEvent('categoryPricingUpdated', { 
       detail: { categoryId, updates } 
     }));
+  } else {
+    throw new Error(`Category ${categoryId} not found`);
+  }
+};
+
+// Initialize categories in Supabase if they don't exist
+export const initializeCategoriesInDatabase = async () => {
+  try {
+    const categories = getCategoriesStore();
+    
+    for (const category of categories) {
+      const { data: existingCategory } = await supabase
+        .from('equipment_categories')
+        .select('id')
+        .eq('id', category.id)
+        .single();
+      
+      if (!existingCategory) {
+        await supabase
+          .from('equipment_categories')
+          .insert({
+            id: category.id,
+            name: category.name,
+            pricing: category.pricing,
+            delivery: category.delivery
+          });
+        
+        console.log(`Initialized category ${category.id} in database`);
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing categories in database:', error);
   }
 };
 
