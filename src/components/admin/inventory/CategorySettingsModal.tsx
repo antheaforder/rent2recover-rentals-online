@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EQUIPMENT_CATEGORIES, type EquipmentCategoryId } from "@/config/equipmentCategories";
@@ -30,7 +30,7 @@ const CategorySettingsModal = ({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
@@ -44,6 +44,8 @@ const CategorySettingsModal = ({
       setMonthlyRate(currentCategory.pricing.monthlyRate || 0);
       setBaseFee(currentCategory.delivery.baseFee || 50);
       setCrossBranchSurcharge(currentCategory.delivery.crossBranchSurcharge || 150);
+      setHasUnsavedChanges(false);
+      setSaveError(null);
     }
   }, [currentCategory]);
 
@@ -57,111 +59,79 @@ const CategorySettingsModal = ({
     return !isNaN(value) && value >= 0 && isFinite(value);
   };
 
-  const debouncedSave = useCallback(async (updates: any) => {
+  const handleInputChange = (field: string, value: number) => {
+    setHasUnsavedChanges(true);
+    setSaveError(null);
+    
+    switch (field) {
+      case 'dailyRate':
+        setDailyRate(value);
+        break;
+      case 'weeklyRate':
+        setWeeklyRate(value);
+        break;
+      case 'monthlyRate':
+        setMonthlyRate(value);
+        break;
+      case 'baseFee':
+        setBaseFee(value);
+        break;
+      case 'crossBranchSurcharge':
+        setCrossBranchSurcharge(value);
+        break;
+    }
+  };
+
+  const handleSave = async () => {
     if (!category) return;
 
-    // Clear any existing timeout
-    if (saveTimeout) {
-      clearTimeout(saveTimeout);
+    // Validate all values before saving
+    if (!validateValue(dailyRate) || 
+        !validateValue(weeklyRate) || 
+        !validateValue(monthlyRate) ||
+        !validateValue(baseFee) ||
+        !validateValue(crossBranchSurcharge)) {
+      setSaveError("Invalid values. Please enter valid numbers.");
+      return;
     }
 
-    // Set a new timeout for debounced save
-    const timeout = setTimeout(async () => {
-      // Validate all values before saving
-      const { pricing, delivery } = updates;
+    setIsSaving(true);
+    setSaveError(null);
+    
+    try {
+      const updates = {
+        pricing: { dailyRate, weeklyRate, monthlyRate },
+        delivery: { baseFee, crossBranchSurcharge }
+      };
       
-      if (!validateValue(pricing.dailyRate) || 
-          !validateValue(pricing.weeklyRate) || 
-          !validateValue(pricing.monthlyRate) ||
-          !validateValue(delivery.baseFee) ||
-          !validateValue(delivery.crossBranchSurcharge)) {
-        setSaveError("Invalid values. Please enter valid numbers.");
-        return;
-      }
-
-      setIsSaving(true);
-      setSaveError(null);
+      console.log('Attempting to save category pricing:', category, updates);
+      await updateCategoryPricing(category, updates);
+      onUpdate(category, updates);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
       
-      try {
-        console.log('Attempting to save category pricing:', category, updates);
-        await updateCategoryPricing(category, updates);
-        onUpdate(category, updates);
-        setLastSaved(new Date());
-        
-        toast({
-          title: "Settings Saved Successfully",
-          description: "Category pricing has been updated and saved to database"
-        });
-        
-        console.log('Category pricing saved successfully');
-        
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to save category settings";
-        setSaveError(errorMessage);
-        
-        toast({
-          title: "Save Failed",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        
-        console.error('Failed to save category pricing:', error);
-      }
+      toast({
+        title: "Settings Saved Successfully",
+        description: "Category pricing has been updated and saved to database"
+      });
       
-      setIsSaving(false);
-    }, 500); // 500ms debounce
-
-    setSaveTimeout(timeout);
-  }, [category, onUpdate, toast, saveTimeout]);
-
-  const handleDailyRateChange = (value: number) => {
-    setDailyRate(value);
-    debouncedSave({
-      pricing: { dailyRate: value, weeklyRate, monthlyRate },
-      delivery: { baseFee, crossBranchSurcharge }
-    });
+      console.log('Category pricing saved successfully');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save category settings";
+      setSaveError(errorMessage);
+      
+      toast({
+        title: "Save Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      
+      console.error('Failed to save category pricing:', error);
+    }
+    
+    setIsSaving(false);
   };
-
-  const handleWeeklyRateChange = (value: number) => {
-    setWeeklyRate(value);
-    debouncedSave({
-      pricing: { dailyRate, weeklyRate: value, monthlyRate },
-      delivery: { baseFee, crossBranchSurcharge }
-    });
-  };
-
-  const handleMonthlyRateChange = (value: number) => {
-    setMonthlyRate(value);
-    debouncedSave({
-      pricing: { dailyRate, weeklyRate, monthlyRate: value },
-      delivery: { baseFee, crossBranchSurcharge }
-    });
-  };
-
-  const handleBaseFeeChange = (value: number) => {
-    setBaseFee(value);
-    debouncedSave({
-      pricing: { dailyRate, weeklyRate, monthlyRate },
-      delivery: { baseFee: value, crossBranchSurcharge }
-    });
-  };
-
-  const handleCrossBranchSurchargeChange = (value: number) => {
-    setCrossBranchSurcharge(value);
-    debouncedSave({
-      pricing: { dailyRate, weeklyRate, monthlyRate },
-      delivery: { baseFee, crossBranchSurcharge: value }
-    });
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
-      }
-    };
-  }, [saveTimeout]);
 
   if (!category || !categoryInfo) return null;
 
@@ -185,26 +155,27 @@ const CategorySettingsModal = ({
             dailyRate={dailyRate}
             weeklyRate={weeklyRate}
             monthlyRate={monthlyRate}
-            onDailyRateChange={handleDailyRateChange}
-            onWeeklyRateChange={handleWeeklyRateChange}
-            onMonthlyRateChange={handleMonthlyRateChange}
+            onDailyRateChange={(value) => handleInputChange('dailyRate', value)}
+            onWeeklyRateChange={(value) => handleInputChange('weeklyRate', value)}
+            onMonthlyRateChange={(value) => handleInputChange('monthlyRate', value)}
             isSaving={isSaving}
           />
 
           <DeliveryInputs
             baseFee={baseFee}
             crossBranchSurcharge={crossBranchSurcharge}
-            onBaseFeeChange={handleBaseFeeChange}
-            onCrossBranchSurchargeChange={handleCrossBranchSurchargeChange}
+            onBaseFeeChange={(value) => handleInputChange('baseFee', value)}
+            onCrossBranchSurchargeChange={(value) => handleInputChange('crossBranchSurcharge', value)}
             isSaving={isSaving}
           />
 
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <p className="text-xs text-blue-700">
-              💡 Changes are automatically saved 500ms after you finish typing. 
-              Updates will immediately reflect in Overview, Calendar, and Bookings tabs.
-            </p>
-          </div>
+          {hasUnsavedChanges && (
+            <div className="bg-amber-50 p-3 rounded-lg">
+              <p className="text-xs text-amber-700">
+                ⚠️ You have unsaved changes. Click "Save Settings" to persist your changes.
+              </p>
+            </div>
+          )}
 
           {saveError && (
             <div className="bg-red-50 p-3 rounded-lg">
@@ -214,9 +185,16 @@ const CategorySettingsModal = ({
             </div>
           )}
 
-          <div className="flex justify-end">
-            <Button onClick={onClose} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Done'}
+          <div className="flex justify-between gap-2">
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={isSaving || !hasUnsavedChanges}
+              className={hasUnsavedChanges ? "bg-blue-600 hover:bg-blue-700" : ""}
+            >
+              {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Settings' : 'No Changes'}
             </Button>
           </div>
         </div>

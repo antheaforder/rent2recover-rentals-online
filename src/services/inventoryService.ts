@@ -1,4 +1,3 @@
-
 import { InventoryItem } from "@/config/equipmentCategories";
 import { getInventoryStore, setInventoryStore, getBookingStore } from "./mockDataService";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +52,7 @@ export const generateSerialNumber = (category: string, branch: string): string =
 };
 
 export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
-  const inventory = getInventoryStore();
+  console.log('Adding inventory item:', item);
   
   // Generate unique ID and serial number if not provided
   const newItem: InventoryItem = {
@@ -64,13 +63,9 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
     status: item.status || 'available'
   };
   
-  // Save to local store
-  setInventoryStore([...inventory, newItem]);
-  
-  // Save to Supabase with proper error handling
   try {
-    // Use any type to bypass TypeScript errors until types are regenerated
-    const { error } = await (supabase as any)
+    // Save to Supabase first
+    const { data, error } = await supabase
       .from('inventory_items')
       .insert({
         id: newItem.id,
@@ -83,17 +78,32 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
         last_checked: newItem.lastChecked,
         notes: newItem.notes,
         purchase_date: newItem.purchaseDate
-      });
+      })
+      .select()
+      .single();
     
     if (error) {
       console.error('Error saving to Supabase:', error);
-      // Continue with local storage for now
+      throw new Error(`Failed to save item to database: ${error.message}`);
     }
+    
+    console.log('Successfully saved to Supabase:', data);
+    
+    // Update local store after successful save
+    const inventory = getInventoryStore();
+    setInventoryStore([...inventory, newItem]);
+    
+    // Trigger refresh events for other components
+    window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
+      detail: { category: newItem.category, branch: newItem.branch } 
+    }));
+    
+    return newItem;
+    
   } catch (error) {
-    console.error('Supabase operation failed, using local storage:', error);
+    console.error('Failed to add inventory item:', error);
+    throw error;
   }
-  
-  return newItem;
 };
 
 export const updateInventoryItem = async (id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | null> => {
@@ -102,12 +112,10 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
   if (index !== -1) {
     const updatedInventory = [...inventory];
     updatedInventory[index] = { ...updatedInventory[index], ...updates };
-    setInventoryStore(updatedInventory);
     
-    // Update in Supabase with proper error handling
     try {
-      // Use any type to bypass TypeScript errors until types are regenerated
-      const { error } = await (supabase as any)
+      // Update in Supabase
+      const { error } = await supabase
         .from('inventory_items')
         .update({
           name: updates.name,
@@ -120,12 +128,23 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
       
       if (error) {
         console.error('Error updating in Supabase:', error);
+        throw new Error(`Failed to update item: ${error.message}`);
       }
+      
+      // Update local store after successful save
+      setInventoryStore(updatedInventory);
+      
+      // Trigger refresh events
+      window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
+        detail: { category: updatedInventory[index].category, branch: updatedInventory[index].branch } 
+      }));
+      
+      return updatedInventory[index];
+      
     } catch (error) {
-      console.error('Supabase operation failed, using local storage:', error);
+      console.error('Failed to update inventory item:', error);
+      throw error;
     }
-    
-    return updatedInventory[index];
   }
   return null;
 };
@@ -145,26 +164,36 @@ export const deleteInventoryItem = async (id: string): Promise<boolean> => {
   const inventory = getInventoryStore();
   const index = inventory.findIndex(item => item.id === id);
   if (index !== -1) {
-    const updatedInventory = [...inventory];
-    updatedInventory.splice(index, 1);
-    setInventoryStore(updatedInventory);
+    const itemToDelete = inventory[index];
     
-    // Delete from Supabase with proper error handling
     try {
-      // Use any type to bypass TypeScript errors until types are regenerated
-      const { error } = await (supabase as any)
+      // Delete from Supabase
+      const { error } = await supabase
         .from('inventory_items')
         .delete()
         .eq('id', id);
       
       if (error) {
         console.error('Error deleting from Supabase:', error);
+        throw new Error(`Failed to delete item: ${error.message}`);
       }
+      
+      // Update local store after successful delete
+      const updatedInventory = [...inventory];
+      updatedInventory.splice(index, 1);
+      setInventoryStore(updatedInventory);
+      
+      // Trigger refresh events
+      window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
+        detail: { category: itemToDelete.category, branch: itemToDelete.branch } 
+      }));
+      
+      return true;
+      
     } catch (error) {
-      console.error('Supabase operation failed, using local storage:', error);
+      console.error('Failed to delete inventory item:', error);
+      throw error;
     }
-    
-    return true;
   }
   return false;
 };

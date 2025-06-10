@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,10 +36,21 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [modalCategory, setModalCategory] = useState<EquipmentCategoryId | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
   const { toast } = useToast();
 
   const categories = getEquipmentCategories();
   const currentBranch = BRANCHES.find(b => b.id === branch);
+
+  // Listen for inventory updates to refresh counts
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      setInventoryRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    return () => window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+  }, []);
 
   const getCategoryInventoryCount = (categoryId: EquipmentCategoryId, branchId: string) => {
     const inventory = getInventoryByBranch(branchId);
@@ -92,7 +103,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
   const handleSaveItem = async (itemData: any) => {
     try {
       if (modalMode === 'add') {
-        addInventoryItem({
+        await addInventoryItem({
           name: itemData.name,
           category: itemData.category,
           branch: itemData.branch,
@@ -103,16 +114,20 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           notes: itemData.notes,
           purchaseDate: itemData.purchaseDate
         });
+        
         toast({
           title: "Item Added Successfully",
           description: `${itemData.name} has been added to inventory and saved to database`
         });
+        
+        // Force refresh of inventory counts
+        setInventoryRefreshKey(prev => prev + 1);
       }
       setIsItemModalOpen(false);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save item to database",
+        description: error instanceof Error ? error.message : "Failed to save item to database",
         variant: "destructive"
       });
     }
@@ -158,7 +173,7 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
           const categoryData = categories.find(c => c.id === category.id);
           
           return (
-            <Card key={category.id} className="hover:shadow-md transition-shadow">
+            <Card key={`${category.id}-${inventoryRefreshKey}`} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -264,3 +279,5 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
 };
 
 export default InventoryManager;
+
+}
