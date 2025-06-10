@@ -56,17 +56,17 @@ const InventoryManager = ({ branch }: InventoryManagerProps) => {
       />
 
       <div className="grid gap-4">
-        {EQUIPMENT_CATEGORIES.map((category) => {
-          const hiltonCount = getCategoryInventoryCount(category.id, 'hilton');
-          const johannesburgCount = getCategoryInventoryCount(category.id, 'johannesburg');
-          const currentBranchCount = getCategoryInventoryCount(category.id, branch);
-          const availableCount = getAvailableCount(category.id, branch);
-          const categoryData = categories.find(c => c.id === category.id);
+        {EQUIPMENT_CATEGORIES.map((baseCategoryInfo) => {
+          const hiltonCount = getCategoryInventoryCount(baseCategoryInfo.id, 'hilton');
+          const johannesburgCount = getCategoryInventoryCount(baseCategoryInfo.id, 'johannesburg');
+          const currentBranchCount = getCategoryInventoryCount(baseCategoryInfo.id, branch);
+          const availableCount = getAvailableCount(baseCategoryInfo.id, branch);
+          const categoryData = categories.find(c => c.id === baseCategoryInfo.id);
           
           return (
             <CategoryCard
-              key={category.id}
-              category={category}
+              key={baseCategoryInfo.id}
+              baseCategoryInfo={baseCategoryInfo}
               branch={branch}
               hiltonCount={hiltonCount}
               johannesburgCount={johannesburgCount}

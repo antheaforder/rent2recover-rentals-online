@@ -10,16 +10,20 @@ import {
   Users,
   MapPin
 } from "lucide-react";
-import { EQUIPMENT_CATEGORIES, BRANCHES, type EquipmentCategoryId, type EquipmentCategory } from "@/config/equipmentCategories";
+import { BRANCHES, type EquipmentCategoryId, type EquipmentCategory } from "@/config/equipmentCategories";
 
 interface CategoryCardProps {
-  category: EquipmentCategory;
+  baseCategoryInfo: {
+    id: EquipmentCategoryId;
+    name: string;
+    color: string;
+  };
   branch: string;
   hiltonCount: number;
   johannesburgCount: number;
   currentBranchCount: number;
   availableCount: number;
-  categoryData: any;
+  categoryData: EquipmentCategory | undefined;
   inventoryRefreshKey: number;
   onAddItem: (categoryId: EquipmentCategoryId) => void;
   onSettingsClick: (categoryId: EquipmentCategoryId) => void;
@@ -27,7 +31,7 @@ interface CategoryCardProps {
 }
 
 const CategoryCard = ({
-  category,
+  baseCategoryInfo,
   branch,
   hiltonCount,
   johannesburgCount,
@@ -42,7 +46,7 @@ const CategoryCard = ({
   const totalCount = hiltonCount + johannesburgCount;
 
   return (
-    <Card key={`${category.id}-${inventoryRefreshKey}`} className="hover:shadow-md transition-shadow">
+    <Card key={`${baseCategoryInfo.id}-${inventoryRefreshKey}`} className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -52,19 +56,19 @@ const CategoryCard = ({
                 <div className="w-16 h-16 rounded-lg overflow-hidden">
                   <img 
                     src={categoryData.imageUrl} 
-                    alt={category.name}
+                    alt={baseCategoryInfo.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
               ) : (
-                <div className={`p-3 ${category.color} rounded-lg`}>
+                <div className={`p-3 ${baseCategoryInfo.color} rounded-lg`}>
                   <Package className="h-6 w-6 text-white" />
                 </div>
               )}
             </div>
             
             <div>
-              <h3 className="font-semibold text-lg">{category.name}</h3>
+              <h3 className="font-semibold text-lg">{baseCategoryInfo.name}</h3>
               <div className="flex gap-4 text-sm text-gray-600 mt-1">
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
@@ -81,13 +85,13 @@ const CategoryCard = ({
               </div>
               <div className="flex gap-2 mt-2">
                 <Badge variant="outline">
-                  Daily: R{categoryData?.pricing.dailyRate || 0}
+                  Daily: R{categoryData?.pricing?.dailyRate || 0}
                 </Badge>
                 <Badge variant="outline">
-                  Weekly: R{categoryData?.pricing.weeklyRate || 0}
+                  Weekly: R{categoryData?.pricing?.weeklyRate || 0}
                 </Badge>
                 <Badge variant="outline">
-                  Monthly: R{categoryData?.pricing.monthlyRate || 0}
+                  Monthly: R{categoryData?.pricing?.monthlyRate || 0}
                 </Badge>
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   {availableCount} Available
@@ -100,7 +104,7 @@ const CategoryCard = ({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onAddItem(category.id)}
+              onClick={() => onAddItem(baseCategoryInfo.id)}
               className="text-green-600 hover:bg-green-50"
             >
               <Plus className="h-4 w-4 mr-1" />
@@ -109,14 +113,14 @@ const CategoryCard = ({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onSettingsClick(category.id)}
+              onClick={() => onSettingsClick(baseCategoryInfo.id)}
             >
               <Settings className="h-4 w-4 mr-1" />
               Settings
             </Button>
             <Button
               size="sm"
-              onClick={() => onViewItems(category.id)}
+              onClick={() => onViewItems(baseCategoryInfo.id)}
             >
               View Items ({currentBranchCount})
               <ArrowRight className="h-4 w-4 ml-1" />
