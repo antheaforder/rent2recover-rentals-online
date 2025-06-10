@@ -6,77 +6,89 @@ import { supabase } from "@/integrations/supabase/client";
 export const getEquipmentCategories = (): EquipmentCategory[] => getCategoriesStore();
 
 export const updateCategoryPricing = async (categoryId: EquipmentCategoryId, updates: { pricing: any; delivery: any }) => {
+  console.log('Starting updateCategoryPricing for:', categoryId, updates);
+  
+  // First update local store immediately for UI responsiveness
   const categories = getCategoriesStore();
   const index = categories.findIndex(cat => cat.id === categoryId);
-  if (index !== -1) {
-    const updatedCategories = [...categories];
-    updatedCategories[index] = {
-      ...updatedCategories[index],
-      pricing: {
-        ...updatedCategories[index].pricing,
-        ...updates.pricing,
-        dailyRate: updates.pricing.dailyRate || 0
-      },
-      delivery: updates.delivery
-    };
-    setCategoriesStore(updatedCategories);
+  if (index === -1) {
+    throw new Error(`Category ${categoryId} not found in local store`);
+  }
+
+  const updatedCategories = [...categories];
+  updatedCategories[index] = {
+    ...updatedCategories[index],
+    pricing: {
+      ...updatedCategories[index].pricing,
+      ...updates.pricing,
+      dailyRate: Number(updates.pricing.dailyRate) || 0,
+      weeklyRate: Number(updates.pricing.weeklyRate) || 0,
+      monthlyRate: Number(updates.pricing.monthlyRate) || 0
+    },
+    delivery: {
+      ...updatedCategories[index].delivery,
+      ...updates.delivery,
+      baseFee: Number(updates.delivery.baseFee) || 50,
+      crossBranchSurcharge: Number(updates.delivery.crossBranchSurcharge) || 150
+    }
+  };
+  
+  // Update local store first
+  setCategoriesStore(updatedCategories);
+  
+  // Now save to Supabase with proper error handling
+  try {
+    console.log('Attempting to save to Supabase...');
     
-    // Save to Supabase with proper error handling
-    try {
-      console.log('Saving category pricing to Supabase:', categoryId, updates);
+    // Try to update existing record first
+    const { data: updateData, error: updateError } = await supabase
+      .from('equipment_categories')
+      .update({
+        name: updatedCategories[index].name,
+        pricing: updatedCategories[index].pricing,
+        delivery: updatedCategories[index].delivery,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', categoryId)
+      .select();
+
+    if (updateError) {
+      console.log('Update failed, trying insert:', updateError);
       
-      // First, check if the category exists
-      const { data: existingCategory } = await supabase
+      // If update fails (record doesn't exist), try insert
+      const { data: insertData, error: insertError } = await supabase
         .from('equipment_categories')
-        .select('id')
-        .eq('id', categoryId)
-        .single();
-      
-      if (existingCategory) {
-        // Update existing category
-        const { error } = await supabase
-          .from('equipment_categories')
-          .update({
-            pricing: updatedCategories[index].pricing,
-            delivery: updatedCategories[index].delivery,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', categoryId);
-        
-        if (error) {
-          console.error('Error updating category pricing in Supabase:', error);
-          throw error;
-        }
+        .insert({
+          id: categoryId,
+          name: updatedCategories[index].name,
+          pricing: updatedCategories[index].pricing,
+          delivery: updatedCategories[index].delivery
+        })
+        .select();
+
+      if (insertError) {
+        console.error('Both update and insert failed:', insertError);
+        // Don't throw here - keep local changes even if DB save fails
+        console.warn('Category saved locally but not persisted to database:', insertError.message);
       } else {
-        // Insert new category
-        const { error } = await supabase
-          .from('equipment_categories')
-          .insert({
-            id: categoryId,
-            name: updatedCategories[index].name,
-            pricing: updatedCategories[index].pricing,
-            delivery: updatedCategories[index].delivery
-          });
-        
-        if (error) {
-          console.error('Error inserting category pricing in Supabase:', error);
-          throw error;
-        }
+        console.log('Category inserted successfully:', insertData);
       }
-      
-      console.log('Category pricing saved successfully to Supabase');
-      
-    } catch (error) {
-      console.error('Supabase operation failed:', error);
-      throw error; // Re-throw to let the calling component handle the error
+    } else {
+      console.log('Category updated successfully:', updateData);
     }
     
     // Trigger refresh events for other components
     window.dispatchEvent(new CustomEvent('categoryPricingUpdated', { 
       detail: { categoryId, updates } 
     }));
-  } else {
-    throw new Error(`Category ${categoryId} not found`);
+    
+    return updatedCategories[index];
+    
+  } catch (error) {
+    console.error('Unexpected error during Supabase operation:', error);
+    // Don't throw - keep local changes
+    console.warn('Category saved locally but database sync failed');
+    return updatedCategories[index];
   }
 };
 

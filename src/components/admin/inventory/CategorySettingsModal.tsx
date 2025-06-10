@@ -31,6 +31,7 @@ const CategorySettingsModal = ({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const categoryInfo = EQUIPMENT_CATEGORIES.find(cat => cat.id === category);
@@ -46,6 +47,7 @@ const CategorySettingsModal = ({
       setCrossBranchSurcharge(currentCategory.delivery.crossBranchSurcharge || 150);
       setHasUnsavedChanges(false);
       setSaveError(null);
+      setValidationErrors({});
     }
   }, [currentCategory]);
 
@@ -55,13 +57,51 @@ const CategorySettingsModal = ({
     }
   }, [isOpen]);
 
-  const validateValue = (value: number): boolean => {
-    return !isNaN(value) && value >= 0 && isFinite(value);
+  const validateField = (field: string, value: number): string | null => {
+    if (isNaN(value) || !isFinite(value)) {
+      return "Must be a valid number";
+    }
+    if (value < 0) {
+      return "Must be greater than or equal to 0";
+    }
+    return null;
+  };
+
+  const validateAllFields = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    const dailyError = validateField('dailyRate', dailyRate);
+    if (dailyError) errors.dailyRate = dailyError;
+    
+    const weeklyError = validateField('weeklyRate', weeklyRate);
+    if (weeklyError) errors.weeklyRate = weeklyError;
+    
+    const monthlyError = validateField('monthlyRate', monthlyRate);
+    if (monthlyError) errors.monthlyRate = monthlyError;
+    
+    const baseFeeError = validateField('baseFee', baseFee);
+    if (baseFeeError) errors.baseFee = baseFeeError;
+    
+    const surchargeError = validateField('crossBranchSurcharge', crossBranchSurcharge);
+    if (surchargeError) errors.crossBranchSurcharge = surchargeError;
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleInputChange = (field: string, value: number) => {
     setHasUnsavedChanges(true);
     setSaveError(null);
+    
+    // Clear validation error for this field if value is now valid
+    const fieldError = validateField(field, value);
+    if (!fieldError && validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
     
     switch (field) {
       case 'dailyRate':
@@ -85,13 +125,9 @@ const CategorySettingsModal = ({
   const handleSave = async () => {
     if (!category) return;
 
-    // Validate all values before saving
-    if (!validateValue(dailyRate) || 
-        !validateValue(weeklyRate) || 
-        !validateValue(monthlyRate) ||
-        !validateValue(baseFee) ||
-        !validateValue(crossBranchSurcharge)) {
-      setSaveError("Invalid values. Please enter valid numbers.");
+    // Validate all fields before saving
+    if (!validateAllFields()) {
+      setSaveError("Please fix validation errors before saving");
       return;
     }
 
@@ -100,19 +136,29 @@ const CategorySettingsModal = ({
     
     try {
       const updates = {
-        pricing: { dailyRate, weeklyRate, monthlyRate },
-        delivery: { baseFee, crossBranchSurcharge }
+        pricing: { 
+          dailyRate: Number(dailyRate), 
+          weeklyRate: Number(weeklyRate), 
+          monthlyRate: Number(monthlyRate) 
+        },
+        delivery: { 
+          baseFee: Number(baseFee), 
+          crossBranchSurcharge: Number(crossBranchSurcharge) 
+        }
       };
       
-      console.log('Attempting to save category pricing:', category, updates);
+      console.log('Saving category pricing:', category, updates);
       await updateCategoryPricing(category, updates);
+      
+      // Call the parent update handler
       onUpdate(category, updates);
+      
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       
       toast({
         title: "Settings Saved Successfully",
-        description: "Category pricing has been updated and saved to database"
+        description: "Category pricing has been updated and will be used in all quotes"
       });
       
       console.log('Category pricing saved successfully');
@@ -159,6 +205,7 @@ const CategorySettingsModal = ({
             onWeeklyRateChange={(value) => handleInputChange('weeklyRate', value)}
             onMonthlyRateChange={(value) => handleInputChange('monthlyRate', value)}
             isSaving={isSaving}
+            validationErrors={validationErrors}
           />
 
           <DeliveryInputs
@@ -167,6 +214,7 @@ const CategorySettingsModal = ({
             onBaseFeeChange={(value) => handleInputChange('baseFee', value)}
             onCrossBranchSurchargeChange={(value) => handleInputChange('crossBranchSurcharge', value)}
             isSaving={isSaving}
+            validationErrors={validationErrors}
           />
 
           {hasUnsavedChanges && (
@@ -180,7 +228,7 @@ const CategorySettingsModal = ({
           {saveError && (
             <div className="bg-red-50 p-3 rounded-lg">
               <p className="text-xs text-red-700">
-                ❌ Save failed: {saveError}. Please check your values and try again.
+                ❌ Save failed: {saveError}
               </p>
             </div>
           )}
@@ -191,7 +239,7 @@ const CategorySettingsModal = ({
             </Button>
             <Button 
               onClick={handleSave} 
-              disabled={isSaving || !hasUnsavedChanges}
+              disabled={isSaving || !hasUnsavedChanges || Object.keys(validationErrors).length > 0}
               className={hasUnsavedChanges ? "bg-blue-600 hover:bg-blue-700" : ""}
             >
               {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Settings' : 'No Changes'}

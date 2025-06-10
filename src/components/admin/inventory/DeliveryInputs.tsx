@@ -8,6 +8,7 @@ interface DeliveryInputsProps {
   onBaseFeeChange: (value: number) => void;
   onCrossBranchSurchargeChange: (value: number) => void;
   isSaving: boolean;
+  validationErrors?: Record<string, string>;
 }
 
 const DeliveryInputs = ({
@@ -15,7 +16,8 @@ const DeliveryInputs = ({
   crossBranchSurcharge,
   onBaseFeeChange,
   onCrossBranchSurchargeChange,
-  isSaving
+  isSaving,
+  validationErrors = {}
 }: DeliveryInputsProps) => {
   return (
     <div className="grid grid-cols-2 gap-4">
@@ -26,9 +28,14 @@ const DeliveryInputs = ({
           type="number"
           value={baseFee}
           onChange={(e) => onBaseFeeChange(Number(e.target.value))}
-          className="text-center"
+          className={`text-center ${validationErrors.baseFee ? 'border-red-500' : ''}`}
           disabled={isSaving}
+          min="0"
+          step="0.01"
         />
+        {validationErrors.baseFee && (
+          <p className="text-xs text-red-600 mt-1">{validationErrors.baseFee}</p>
+        )}
       </div>
       <div>
         <Label htmlFor="crossBranchSurcharge">Cross-Branch Surcharge (R)</Label>
@@ -37,9 +44,14 @@ const DeliveryInputs = ({
           type="number"
           value={crossBranchSurcharge}
           onChange={(e) => onCrossBranchSurchargeChange(Number(e.target.value))}
-          className="text-center"
+          className={`text-center ${validationErrors.crossBranchSurcharge ? 'border-red-500' : ''}`}
           disabled={isSaving}
+          min="0"
+          step="0.01"
         />
+        {validationErrors.crossBranchSurcharge && (
+          <p className="text-xs text-red-600 mt-1">{validationErrors.crossBranchSurcharge}</p>
+        )}
       </div>
     </div>
   );
