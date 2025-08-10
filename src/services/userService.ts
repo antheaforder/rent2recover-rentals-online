@@ -26,20 +26,19 @@ export interface Customer {
 export const getAllProfiles = async () => {
   try {
     const { data, error } = await supabase
-      .from('admin_users')
+      .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     
-    // Transform admin_users to the Profile interface
-    const profiles = data.map(admin => ({
-      id: admin.id,
-      email: admin.email,
-      full_name: admin.username,
-      role: admin.role,
-      created_at: admin.created_at,
-      updated_at: admin.updated_at
+    const profiles: Profile[] = (data || []).map((p: any) => ({
+      id: p.id,
+      email: p.email,
+      full_name: p.full_name,
+      role: p.role,
+      created_at: p.created_at,
+      updated_at: p.updated_at
     }));
     
     return { data: profiles, error: null };
@@ -52,24 +51,23 @@ export const getAllProfiles = async () => {
 export const getAllCustomers = async () => {
   try {
     const { data, error } = await supabase
-      .from('customer_users')
+      .from('customers')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     
-    // Transform customer_users to the Customer interface
-    const customers = data.map(customer => ({
-      id: customer.id,
-      user_id: null, // This field might not exist in customer_users
-      full_name: customer.full_name,
-      email: customer.email,
-      phone: customer.phone,
-      delivery_address: customer.delivery_address,
-      notes: null, // This field might not exist in customer_users
-      total_bookings: customer.total_bookings || 0,
-      created_at: customer.created_at,
-      updated_at: customer.updated_at
+    const customers: Customer[] = (data || []).map((c: any) => ({
+      id: c.id,
+      user_id: null,
+      full_name: c.full_name,
+      email: c.email,
+      phone: c.phone,
+      delivery_address: c.delivery_address,
+      notes: c.notes ?? null,
+      total_bookings: c.total_bookings || 0,
+      created_at: c.created_at,
+      updated_at: c.updated_at
     }));
     
     return { data: customers, error: null };
@@ -82,19 +80,19 @@ export const getAllCustomers = async () => {
 export const createCustomer = async (customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
   try {
     const { data, error } = await supabase
-      .from('customer_users')
+      .from('customers')
       .insert([{
         full_name: customerData.full_name,
         email: customerData.email,
         phone: customerData.phone,
-        delivery_address: customerData.delivery_address
+        delivery_address: customerData.delivery_address,
+        notes: customerData.notes ?? null
       }])
       .select()
       .single();
 
     if (error) throw error;
     
-    // Transform to Customer interface
     const customer: Customer = {
       id: data.id,
       user_id: null,
@@ -102,8 +100,8 @@ export const createCustomer = async (customerData: Omit<Customer, 'id' | 'create
       email: data.email,
       phone: data.phone,
       delivery_address: data.delivery_address,
-      notes: null,
-      total_bookings: data.total_bookings || 0,
+      notes: data.notes ?? null,
+      total_bookings: 0,
       created_at: data.created_at,
       updated_at: data.updated_at
     };
@@ -118,12 +116,13 @@ export const createCustomer = async (customerData: Omit<Customer, 'id' | 'create
 export const updateCustomer = async (id: string, updates: Partial<Customer>) => {
   try {
     const { data, error } = await supabase
-      .from('customer_users')
+      .from('customers')
       .update({
         full_name: updates.full_name,
         email: updates.email,
         phone: updates.phone,
-        delivery_address: updates.delivery_address
+        delivery_address: updates.delivery_address,
+        notes: updates.notes ?? null
       })
       .eq('id', id)
       .select()
@@ -131,7 +130,6 @@ export const updateCustomer = async (id: string, updates: Partial<Customer>) => 
 
     if (error) throw error;
     
-    // Transform to Customer interface
     const customer: Customer = {
       id: data.id,
       user_id: null,
@@ -139,7 +137,7 @@ export const updateCustomer = async (id: string, updates: Partial<Customer>) => 
       email: data.email,
       phone: data.phone,
       delivery_address: data.delivery_address,
-      notes: null,
+      notes: data.notes ?? null,
       total_bookings: data.total_bookings || 0,
       created_at: data.created_at,
       updated_at: data.updated_at
@@ -155,7 +153,7 @@ export const updateCustomer = async (id: string, updates: Partial<Customer>) => 
 export const deleteCustomer = async (id: string) => {
   try {
     const { error } = await supabase
-      .from('customer_users')
+      .from('customers')
       .delete()
       .eq('id', id);
 
@@ -170,10 +168,10 @@ export const deleteCustomer = async (id: string) => {
 export const updateProfile = async (id: string, updates: Partial<Profile>) => {
   try {
     const { data, error } = await supabase
-      .from('admin_users')
+      .from('profiles')
       .update({
         email: updates.email,
-        username: updates.full_name,
+        full_name: updates.full_name,
         role: updates.role
       })
       .eq('id', id)
@@ -182,11 +180,10 @@ export const updateProfile = async (id: string, updates: Partial<Profile>) => {
 
     if (error) throw error;
     
-    // Transform to Profile interface
     const profile: Profile = {
       id: data.id,
       email: data.email,
-      full_name: data.username,
+      full_name: data.full_name,
       role: data.role,
       created_at: data.created_at,
       updated_at: data.updated_at
@@ -201,9 +198,8 @@ export const updateProfile = async (id: string, updates: Partial<Profile>) => {
 
 export const deleteProfile = async (id: string) => {
   try {
-    // Delete the admin user
     const { error } = await supabase
-      .from('admin_users')
+      .from('profiles')
       .delete()
       .eq('id', id);
       

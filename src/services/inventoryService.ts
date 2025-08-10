@@ -83,15 +83,12 @@ export const addInventoryItem = async (item: Omit<InventoryItem, 'id'>): Promise
       .from('inventory_items')
       .insert({
         id: newItem.id,
-        name: newItem.name,
-        category: newItem.category,
-        branch: newItem.branch,
+        item_name: newItem.name,
         serial_number: newItem.serialNumber,
-        condition: newItem.condition,
         status: newItem.status,
-        last_checked: newItem.lastChecked,
         notes: newItem.notes || null,
-        purchase_date: newItem.purchaseDate || null
+        branch_id: newItem.branch as any,
+        category_id: newItem.category as any
       })
       .select()
       .single();
@@ -135,14 +132,12 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
     try {
       // Update in Supabase
       const { error } = await supabase
-        .from('inventory_items')
-        .update({
-          name: updates.name,
-          condition: updates.condition,
-          status: updates.status,
-          last_checked: updates.lastChecked,
-          notes: updates.notes
-        })
+      .from('inventory_items')
+      .update({
+        item_name: updates.name,
+        status: updates.status,
+        notes: updates.notes
+      })
         .eq('id', id);
       
       if (error) {

@@ -84,17 +84,21 @@ const UserProfileModal = ({ isOpen, onClose, onSuccess, profile }: UserProfileMo
 
         if (authError) throw authError;
 
-        // 2. Manually create the admin_users record
-        const { error: adminError } = await supabase.from('admin_users').insert([
-          {
-            email: email,
-            username: fullName,
-            role: role === 'super_admin' ? 'super-admin' : 'admin',
-            password_hash: 'managed_by_supabase_auth' // Placeholder since we use Auth
-          }
-        ]);
+        // 2. Create the profile record for the new user
+        const userId = authData.user?.id;
+        if (!userId) throw new Error('Missing user id after sign up');
+        const { error: profileInsertError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userId,
+              email: email,
+              full_name: fullName,
+              role: role === 'super-admin' ? 'super_admin' : role
+            }
+          ]);
 
-        if (adminError) throw adminError;
+        if (profileInsertError) throw profileInsertError;
 
         toast({
           title: "Success", 

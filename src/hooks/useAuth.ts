@@ -21,91 +21,43 @@ export const useAuth = () => {
 
   const fetchUserProfile = async (user: User) => {
     try {
-      console.log('Fetching profile for user:', user.email);
+      console.log('Fetching profile for user:', user.email, user.id);
       console.log('User metadata:', user.user_metadata);
       console.log('User app metadata:', user.app_metadata);
-      
-      // First try to fetch from customer_users
-      const { data: customerData, error: customerError } = await supabase
-        .from('customer_users')
-        .select('*')
-        .eq('email', user.email!)
-        .single();
-      
-      console.log('Customer query result:', { customerData, customerError });
-      
-      if (customerData && !customerError) {
-        console.log('Found customer profile:', customerData);
-        setProfile({
-          id: customerData.id,
-          email: customerData.email,
-          full_name: customerData.full_name,
-          role: 'customer',
-          created_at: customerData.created_at,
-          updated_at: customerData.updated_at,
-        });
-        return;
-      }
 
-      // Then try admin_users
-      const { data: adminData, error: adminError } = await supabase
-        .from('admin_users')
+      // Fetch from profiles by auth user id
+      const { data: profileRow, error: profileError } = await supabase
+        .from('profiles')
         .select('*')
-        .eq('email', user.email!)
-        .single();
-      
-      console.log('Admin query result:', { adminData, adminError });
-      
-      if (adminData && !adminError) {
-        console.log('Found admin profile:', adminData);
-        const normalizedRole = adminData.role === 'super-admin' ? 'super_admin' : adminData.role;
-        console.log('Normalized role:', normalizedRole);
+        .eq('id', user.id)
+        .maybeSingle();
+
+      console.log('Profiles query result:', { profileRow, profileError });
+
+      if (profileRow) {
+        const normalizedRole = profileRow.role === 'super-admin' ? 'super_admin' : profileRow.role;
         setProfile({
-          id: adminData.id,
-          email: adminData.email,
-          full_name: adminData.username,
+          id: profileRow.id,
+          email: profileRow.email,
+          full_name: profileRow.full_name,
           role: normalizedRole,
-          created_at: adminData.created_at,
-          updated_at: adminData.updated_at,
+          created_at: profileRow.created_at,
+          updated_at: profileRow.updated_at,
         });
         return;
       }
 
-      console.log('No profile found for user, checking if we need to create one');
-      
-      // If no profile exists but user has metadata indicating super admin role
-      if (user.user_metadata?.role === 'super_admin' || user.app_metadata?.role === 'super_admin') {
-        console.log('User has super_admin metadata, creating admin profile');
-        
-        const { data: newAdminData, error: createError } = await supabase
-          .from('admin_users')
-          .insert([{
-            email: user.email!,
-            username: user.user_metadata?.full_name || user.email!.split('@')[0],
-            role: 'super-admin',
-            password_hash: 'managed_by_auth'
-          }])
-          .select()
-          .single();
-        
-        if (newAdminData && !createError) {
-          console.log('Created new admin profile:', newAdminData);
-          setProfile({
-            id: newAdminData.id,
-            email: newAdminData.email,
-            full_name: newAdminData.username,
-            role: 'super_admin',
-            created_at: newAdminData.created_at,
-            updated_at: newAdminData.updated_at,
-          });
-          return;
-        } else {
-          console.error('Failed to create admin profile:', createError);
-        }
-      }
-
-      console.log('No profile found and no admin metadata, setting profile to null');
-      setProfile(null);
+      console.log('No profile found in DB; deriving from metadata');
+      const metaRole = (user.user_metadata?.role || user.app_metadata?.role || 'customer') as string;
+      const normalizedMetaRole = metaRole === 'super-admin' ? 'super_admin' : metaRole;
+      setProfile({
+        id: user.id,
+        email: user.email || '',
+        full_name: (user.user_metadata?.full_name as string) || user.email?.split('@')[0] || '',
+        role: normalizedMetaRole,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
@@ -196,35 +148,23 @@ export const useAuth = () => {
       
       console.log('Signup successful, user data:', data.user);
 
-      // Create profile record based on role
-      if (role === 'super_admin') {
-        console.log('Creating admin user profile');
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .insert([{
-            email,
-            username: fullName,
-            role: 'super-admin',
-            password_hash: 'managed_by_auth'
-          }])
-          .select()
-          .single();
-        
-        console.log('Admin profile creation result:', { adminData, adminError });
-      } else {
-        console.log('Creating customer user profile');
-        const { data: customerData, error: customerError } = await supabase
-          .from('customer_users')
-          .insert([{
-            email,
-            full_name: fullName,
-            phone: '',
-            delivery_address: ''
-          }])
-          .select()
-          .single();
-        
-        console.log('Customer profile creation result:', { customerData, customerError });
+      // Try to create a profile record (may be blocked by RLS for non-admins)
+      const newUserId = data.user?.id;
+      if (newUserId) {
+        const normalizedRole = role === 'super-admin' ? 'super_admin' : role;
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: newUserId,
+              email,
+              full_name: fullName,
+              role: normalizedRole,
+            }
+          ]);
+        if (profileErr) {
+          console.warn('Profile insert failed (possibly due to RLS). Continuing.', profileErr);
+        }
       }
 
       toast({
@@ -306,30 +246,17 @@ export const useAuth = () => {
     if (!user) return { error: 'No user logged in' };
 
     try {
-      let result;
-      
-      if (profile?.role === 'super_admin') {
-        result = await supabase
-          .from('admin_users')
-          .update({
-            username: updates.full_name || undefined,
-            email: updates.email || undefined,
-            role: updates.role || undefined
-          })
-          .eq('id', profile.id)
-          .select();
-      } else {
-        result = await supabase
-          .from('customer_users')
-          .update({
-            full_name: updates.full_name || undefined,
-            email: updates.email || undefined
-          })
-          .eq('id', profile.id)
-          .select();
-      }
+      const result = await supabase
+        .from('profiles')
+        .update({
+          full_name: updates.full_name || undefined,
+          email: updates.email || undefined,
+          role: updates.role || undefined
+        })
+        .eq('id', profile?.id || '')
+        .select();
 
-      if (result.error) throw result.error;
+      if ((result as any).error) throw (result as any).error;
 
       // Update local state
       setProfile(prev => prev ? { ...prev, ...updates } : null);
