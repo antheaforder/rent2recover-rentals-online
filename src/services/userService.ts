@@ -138,7 +138,7 @@ export const updateCustomer = async (id: string, updates: Partial<Customer>) => 
       phone: data.phone,
       delivery_address: data.delivery_address,
       notes: data.notes ?? null,
-      total_bookings: data.total_bookings || 0,
+      total_bookings: 0,
       created_at: data.created_at,
       updated_at: data.updated_at
     };
