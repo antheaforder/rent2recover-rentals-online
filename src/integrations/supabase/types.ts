@@ -7,234 +7,260 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instanciate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   public: {
     Tables: {
-      admin_users: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          is_active: boolean
-          last_login: string | null
-          password_hash: string
-          role: string
-          updated_at: string
-          username: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash: string
-          role?: string
-          updated_at?: string
-          username: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          is_active?: boolean
-          last_login?: string | null
-          password_hash?: string
-          role?: string
-          updated_at?: string
-          username?: string
-        }
-        Relationships: []
-      }
       bookings: {
         Row: {
-          branch: string
+          assigned_item_id: string | null
+          branch_id: string
+          category_id: string
           created_at: string
-          customer_id: string
-          delivery_address: string
-          delivery_date: string | null
-          delivery_fee: number
-          deposit_amount: number
+          customer_id: string | null
+          deposit_due: number
+          deposit_paid: boolean
           end_date: string
-          equipment_category: string
-          equipment_name: string
           id: string
-          payment_reference: string | null
-          payment_status: string
-          quote_id: string
-          rental_days: number
-          return_date: string | null
-          special_instructions: string | null
+          price_breakdown: Json
           start_date: string
           status: string
-          total_cost: number
           updated_at: string
         }
         Insert: {
-          branch: string
+          assigned_item_id?: string | null
+          branch_id: string
+          category_id: string
           created_at?: string
-          customer_id: string
-          delivery_address: string
-          delivery_date?: string | null
-          delivery_fee?: number
-          deposit_amount: number
+          customer_id?: string | null
+          deposit_due?: number
+          deposit_paid?: boolean
           end_date: string
-          equipment_category: string
-          equipment_name: string
           id?: string
-          payment_reference?: string | null
-          payment_status?: string
-          quote_id: string
-          rental_days: number
-          return_date?: string | null
-          special_instructions?: string | null
+          price_breakdown?: Json
           start_date: string
           status?: string
-          total_cost: number
           updated_at?: string
         }
         Update: {
-          branch?: string
+          assigned_item_id?: string | null
+          branch_id?: string
+          category_id?: string
           created_at?: string
-          customer_id?: string
-          delivery_address?: string
-          delivery_date?: string | null
-          delivery_fee?: number
-          deposit_amount?: number
+          customer_id?: string | null
+          deposit_due?: number
+          deposit_paid?: boolean
           end_date?: string
-          equipment_category?: string
-          equipment_name?: string
           id?: string
-          payment_reference?: string | null
-          payment_status?: string
-          quote_id?: string
-          rental_days?: number
-          return_date?: string | null
-          special_instructions?: string | null
+          price_breakdown?: Json
           start_date?: string
           status?: string
-          total_cost?: number
           updated_at?: string
         }
         Relationships: [
           {
+            foreignKeyName: "bookings_assigned_item_id_fkey"
+            columns: ["assigned_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bookings_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "customer_users"
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]
       }
-      customer_users: {
+      branches: {
         Row: {
-          address_latitude: number | null
-          address_longitude: number | null
+          code: string
           created_at: string
-          delivery_address: string
-          email: string
-          full_name: string
           id: string
-          is_active: boolean
-          phone: string
-          total_bookings: number
+          name: string
           updated_at: string
         }
         Insert: {
-          address_latitude?: number | null
-          address_longitude?: number | null
+          code: string
           created_at?: string
-          delivery_address: string
-          email: string
-          full_name: string
           id?: string
-          is_active?: boolean
-          phone: string
-          total_bookings?: number
+          name: string
           updated_at?: string
         }
         Update: {
-          address_latitude?: number | null
-          address_longitude?: number | null
+          code?: string
           created_at?: string
-          delivery_address?: string
-          email?: string
-          full_name?: string
           id?: string
-          is_active?: boolean
-          phone?: string
-          total_bookings?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          created_at: string
+          delivery_address: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_address?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_address?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       equipment_categories: {
         Row: {
+          base_delivery_fee: number
           created_at: string
-          delivery: Json
+          cross_branch_surcharge: number
+          daily_rate: number
           id: string
+          monthly_rate: number
           name: string
-          pricing: Json
+          slug: string
           updated_at: string
+          weekly_rate: number
         }
         Insert: {
+          base_delivery_fee?: number
           created_at?: string
-          delivery?: Json
-          id: string
+          cross_branch_surcharge?: number
+          daily_rate?: number
+          id?: string
+          monthly_rate?: number
           name: string
-          pricing?: Json
+          slug: string
           updated_at?: string
+          weekly_rate?: number
         }
         Update: {
+          base_delivery_fee?: number
           created_at?: string
-          delivery?: Json
+          cross_branch_surcharge?: number
+          daily_rate?: number
           id?: string
+          monthly_rate?: number
           name?: string
-          pricing?: Json
+          slug?: string
           updated_at?: string
+          weekly_rate?: number
         }
         Relationships: []
       }
       inventory_items: {
         Row: {
-          branch: string
-          category: string
-          condition: string
+          branch_id: string
+          category_id: string
           created_at: string
           id: string
-          last_checked: string | null
-          name: string
+          item_name: string
           notes: string | null
-          purchase_date: string | null
           serial_number: string
           status: string
           updated_at: string
         }
         Insert: {
-          branch: string
-          category: string
-          condition?: string
+          branch_id: string
+          category_id: string
           created_at?: string
-          id: string
-          last_checked?: string | null
-          name: string
+          id?: string
+          item_name: string
           notes?: string | null
-          purchase_date?: string | null
           serial_number: string
           status?: string
           updated_at?: string
         }
         Update: {
-          branch?: string
-          category?: string
-          condition?: string
+          branch_id?: string
+          category_id?: string
           created_at?: string
           id?: string
-          last_checked?: string | null
-          name?: string
+          item_name?: string
           notes?: string | null
-          purchase_date?: string | null
           serial_number?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          role?: string
           updated_at?: string
         }
         Relationships: []
@@ -244,8 +270,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      is_otp_valid: {
-        Args: { created_at: string }
+      is_super_admin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
     }
@@ -258,21 +284,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -290,14 +320,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -313,14 +345,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -336,14 +370,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -351,14 +387,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
