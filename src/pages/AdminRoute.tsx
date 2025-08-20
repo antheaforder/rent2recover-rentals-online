@@ -1,11 +1,10 @@
-import { useAuth } from '@/hooks/useAuth';
-import AuthPage from './AuthPage';
+
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 
 const AdminRoute = () => {
-  const { isAuthenticated, isSuperAdmin, loading } = useAuth();
-
-  console.log('AdminRoute render:', { isAuthenticated, isSuperAdmin, loading });
+  const { isLoggedIn, loading } = useAdminAuth();
 
   if (loading) {
     return (
@@ -15,13 +14,7 @@ const AdminRoute = () => {
     );
   }
 
-  // If user is authenticated and is a super admin, show admin dashboard
-  if (isAuthenticated && isSuperAdmin) {
-    return <AdminDashboard />;
-  }
-
-  // Otherwise show auth page
-  return <AuthPage />;
+  return isLoggedIn ? <AdminDashboard /> : <AdminLogin />;
 };
 
 export default AdminRoute;

@@ -40,19 +40,16 @@ export const updateCategoryPricing = async (categoryId: EquipmentCategoryId, upd
   try {
     console.log('Attempting to save to Supabase...');
     
-    // Try to update existing record first (match by slug)
+    // Try to update existing record first
     const { data: updateData, error: updateError } = await supabase
       .from('equipment_categories')
       .update({
         name: updatedCategories[index].name,
-        daily_rate: updatedCategories[index].pricing.dailyRate || 0,
-        weekly_rate: updatedCategories[index].pricing.weeklyRate || 0,
-        monthly_rate: updatedCategories[index].pricing.monthlyRate || 0,
-        base_delivery_fee: updatedCategories[index].delivery.baseFee || 0,
-        cross_branch_surcharge: updatedCategories[index].delivery.crossBranchSurcharge || 0,
+        pricing: updatedCategories[index].pricing,
+        delivery: updatedCategories[index].delivery,
         updated_at: new Date().toISOString()
       })
-      .eq('slug', categoryId)
+      .eq('id', categoryId)
       .select();
 
     if (updateError) {
@@ -62,13 +59,10 @@ export const updateCategoryPricing = async (categoryId: EquipmentCategoryId, upd
       const { data: insertData, error: insertError } = await supabase
         .from('equipment_categories')
         .insert({
-          slug: categoryId,
+          id: categoryId,
           name: updatedCategories[index].name,
-          daily_rate: updatedCategories[index].pricing.dailyRate || 0,
-          weekly_rate: updatedCategories[index].pricing.weeklyRate || 0,
-          monthly_rate: updatedCategories[index].pricing.monthlyRate || 0,
-          base_delivery_fee: updatedCategories[index].delivery.baseFee || 0,
-          cross_branch_surcharge: updatedCategories[index].delivery.crossBranchSurcharge || 0
+          pricing: updatedCategories[index].pricing,
+          delivery: updatedCategories[index].delivery
         })
         .select();
 
@@ -106,21 +100,18 @@ export const initializeCategoriesInDatabase = async () => {
     for (const category of categories) {
       const { data: existingCategory } = await supabase
         .from('equipment_categories')
-        .select('slug')
-        .eq('slug', category.id)
-        .maybeSingle();
+        .select('id')
+        .eq('id', category.id)
+        .single();
       
       if (!existingCategory) {
         await supabase
           .from('equipment_categories')
           .insert({
-            slug: category.id,
+            id: category.id,
             name: category.name,
-            daily_rate: category.pricing.dailyRate || 0,
-            weekly_rate: category.pricing.weeklyRate || 0,
-            monthly_rate: category.pricing.monthlyRate || 0,
-            base_delivery_fee: category.delivery.baseFee || 0,
-            cross_branch_surcharge: category.delivery.crossBranchSurcharge || 0
+            pricing: category.pricing,
+            delivery: category.delivery
           });
         
         console.log(`Initialized category ${category.id} in database`);

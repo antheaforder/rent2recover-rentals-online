@@ -6,27 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminLogin = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const { signIn, isAuthenticated, isSuperAdmin, loading } = useAuth();
-
-  console.log('AdminLogin render:', { 
-    isAuthenticated, 
-    isSuperAdmin, 
-    loading,
-    email: email ? 'set' : 'empty'
-  });
+  
+  const { login, isLoggedIn, loading } = useAdminAuth();
+  const { toast } = useToast();
 
   if (loading) {
-    console.log('Auth loading, showing spinner');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -34,46 +28,24 @@ const AdminLogin = () => {
     );
   }
 
-  // Redirect authenticated super admin users
-  if (isAuthenticated && isSuperAdmin) {
-    console.log('User is authenticated and super admin, redirecting to /admin');
+  if (isLoggedIn) {
     return <Navigate to="/admin" replace />;
-  }
-
-  // Redirect authenticated non-admin users
-  if (isAuthenticated && !isSuperAdmin) {
-    console.log('User is authenticated but not super admin, redirecting to /');
-    return <Navigate to="/" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login form submitted with email:', email);
-    
     setIsLoading(true);
     setError('');
 
-    try {
-      console.log('Attempting sign in...');
-      const result = await signIn(email, password);
-      
-      console.log('Sign in result:', {
-        success: !result?.error,
-        error: result?.error,
-        data: result?.data ? 'present' : 'null'
+    const result = await login(username, password);
+    
+    if (result.success) {
+      toast({
+        title: "Login Successful",
+        description: "Welcome to the admin dashboard"
       });
-
-      if (result?.error) {
-        console.error('Login failed with error:', result.error);
-        setError(result.error);
-      } else {
-        console.log('Login successful, should redirect automatically');
-        // The useAuth hook and navigation will handle the redirect
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
-      console.error('Login exception:', err);
-      setError(errorMessage);
+    } else {
+      setError(result.error || 'Login failed');
     }
     
     setIsLoading(false);
@@ -100,18 +72,17 @@ const AdminLogin = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username or Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="Enter username or email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="pl-9"
                   required
-                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -128,13 +99,11 @@ const AdminLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-9 pr-9"
                   required
-                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -151,7 +120,9 @@ const AdminLogin = () => {
           </form>
           
           <div className="mt-6 text-center text-sm text-gray-600">
-            <p>To test, create a Super Admin account from the main auth page</p>
+            <p>Default credentials for testing:</p>
+            <p>Username: <code>superadmin</code></p>
+            <p>Password: <code>admin123</code></p>
           </div>
         </CardContent>
       </Card>

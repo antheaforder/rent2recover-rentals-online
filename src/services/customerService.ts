@@ -60,7 +60,7 @@ export const createBookingWithCustomer = async (
       .insert({
         customer_id: customerResult.customer.id,
         ...bookingData
-      } as any)
+      })
       .select()
       .single();
 
