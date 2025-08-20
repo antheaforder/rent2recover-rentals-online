@@ -62,15 +62,22 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
       {/* Hero Section */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-card shadow-sm border-b">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-              Rent<span className="text-blue-600">2</span>Recover
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <img 
+                src="/lovable-uploads/3e599274-9dd6-490e-b589-c72d88f74133.png" 
+                alt="Rent2Recover Logo" 
+                className="h-20 md:h-24"
+              />
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
+              Rent<span className="text-primary">2</span>Recover
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               South Africa's trusted medical equipment rental service. 
               Quality mobility aids for your recovery journey.
             </p>
@@ -84,13 +91,13 @@ const Index = () => {
                 <Card 
                   key={branch.id}
                   className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                    selectedBranch === branch.id ? 'ring-2 ring-blue-500 shadow-lg' : ''
+                    selectedBranch === branch.id ? 'ring-2 ring-primary shadow-lg' : ''
                   }`}
                   onClick={() => setSelectedBranch(branch.id)}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-blue-600" />
+                      <MapPin className="h-5 w-5 text-primary" />
                       {branch.name}
                     </CardTitle>
                     <CardDescription>{branch.location}</CardDescription>
@@ -128,10 +135,10 @@ const Index = () => {
                   onClick={() => handleCategoryClick(category.id)}
                 >
                   <CardHeader>
-                    <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit group-hover:bg-blue-200 transition-colors">
-                      <IconComponent className="h-8 w-8 text-blue-600" />
+                    <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit group-hover:bg-primary/20 transition-colors">
+                      <IconComponent className="h-8 w-8 text-primary" />
                     </div>
-                    <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors">
                       {category.name}
                     </CardTitle>
                     <CardDescription>
@@ -141,7 +148,7 @@ const Index = () => {
                   <CardContent>
                     <Badge 
                       variant="secondary" 
-                      className={availableCount > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                      className={availableCount > 0 ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"}
                     >
                       {availableCount > 0 ? `${availableCount} Available` : 'Currently Unavailable'}
                     </Badge>
@@ -154,30 +161,30 @@ const Index = () => {
       )}
 
       {/* Features Section */}
-      <div className="bg-gray-50 py-16">
+      <div className="bg-muted/50 py-16">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-12">Why Choose Rent2Recover?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
-                <Shield className="h-8 w-8 text-blue-600" />
+              <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
+                <Shield className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Quality Assured</h3>
-              <p className="text-gray-600">All equipment is regularly maintained and sanitized for your safety</p>
+              <p className="text-muted-foreground">All equipment is regularly maintained and sanitized for your safety</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-green-100 rounded-full w-fit">
-                <Clock className="h-8 w-8 text-green-600" />
+              <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
+                <Clock className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Flexible Rental</h3>
-              <p className="text-gray-600">Daily, weekly or monthly rentals to suit your recovery timeline</p>
+              <p className="text-muted-foreground">Daily, weekly or monthly rentals to suit your recovery timeline</p>
             </div>
             <div className="text-center">
-              <div className="mx-auto mb-4 p-3 bg-purple-100 rounded-full w-fit">
-                <Heart className="h-8 w-8 text-purple-600" />
+              <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
+                <Heart className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Local Support</h3>
-              <p className="text-gray-600">Dedicated support teams in Hilton and Johannesburg for personal service</p>
+              <p className="text-muted-foreground">Dedicated support teams in Hilton and Johannesburg for personal service</p>
             </div>
           </div>
         </div>
